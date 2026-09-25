@@ -31,13 +31,22 @@ export type BinanceExchangeInfoPayload = {
 /**
  * Parsii yhden parin Filter-objektin exchangeInfo-vastauksesta (sama logiikka kuin getFilters).
  */
-export const getFilterFromBinanceExchangeInfo = (exchangeInfo: BinanceExchangeInfoPayload, pair: string): Filter => {
-  const symbolInfo = exchangeInfo.symbols.find((symbol: { symbol: string }) => symbol.symbol === toSymbolKey(pair));
+export const getFilterFromBinanceExchangeInfo = (
+  exchangeInfo: BinanceExchangeInfoPayload,
+  pair: string
+): Filter => {
+  const symbolInfo = exchangeInfo.symbols.find(
+    (symbol: { symbol: string }) => symbol.symbol === toSymbolKey(pair)
+  );
   if (!symbolInfo) {
     throw new Error(`Trading pair ${pair} not found in exchange info`);
   }
-  const priceFilter = symbolInfo.filters.find((filter: { filterType: string }) => filter.filterType === "PRICE_FILTER");
-  const lotSizeFilter = symbolInfo.filters.find((filter: { filterType: string }) => filter.filterType === "LOT_SIZE");
+  const priceFilter = symbolInfo.filters.find(
+    (filter: { filterType: string }) => filter.filterType === "PRICE_FILTER"
+  );
+  const lotSizeFilter = symbolInfo.filters.find(
+    (filter: { filterType: string }) => filter.filterType === "LOT_SIZE"
+  );
   const notionalFilter =
     symbolInfo.filters.find((filter: { filterType: string }) => filter.filterType === "NOTIONAL") ??
     symbolInfo.filters.find((filter: { filterType: string }) => filter.filterType === "MIN_NOTIONAL");
@@ -47,8 +56,7 @@ export const getFilterFromBinanceExchangeInfo = (exchangeInfo: BinanceExchangeIn
   if (!priceFilter || !lotSizeFilter || !notionalFilter || !percentPriceFilter) {
     throw new Error(`Incomplete filters for ${pair} in exchange info`);
   }
-  const minNotional =
-    (notionalFilter as { minNotional?: string }).minNotional ?? (notionalFilter as { notional?: string }).notional;
+  const minNotional = (notionalFilter as { minNotional?: string }).minNotional ?? (notionalFilter as { notional?: string }).notional;
   const maxNotional = (notionalFilter as { maxNotional?: string }).maxNotional ?? "100000000000000";
   const safeParse = (value: any, defaultValue: number = 0): number => {
     const result = parseFloat(String(value ?? defaultValue));

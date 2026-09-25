@@ -148,7 +148,12 @@ export const checkEMASignals = (ema: ema | undefined, symbolOptions: SymbolOptio
 
 export const checkTrendSignal = (ema: Trend) => {
   let trend = "LONG";
-  if (ema.long !== undefined && ema.short !== undefined) {
+  if (
+    ema.long !== undefined &&
+    ema.short !== undefined &&
+    ema.short.length >= 2 &&
+    ema.long.length >= 2
+  ) {
     const currentShortEma = ema.short[ema.short.length - 1];
     const currentLongEma = ema.long[ema.long.length - 1];
     const prevShortEma = ema.short[ema.short.length - 2];

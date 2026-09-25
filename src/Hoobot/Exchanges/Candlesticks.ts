@@ -1,10 +1,5 @@
-import {
-  CandlestickInterval,
-  ConfigOptions,
-  SymbolOptions,
-  getMinutesFromInterval,
-  toSymbolKey,
-} from "../Utilities/Args";
+import { CandlestickInterval, ConfigOptions, SymbolOptions, getMinutesFromInterval, toSymbolKey } from "../Utilities/Args";
+import { resolveSimYieldConfig, yieldToEventLoop } from "../Utilities/simulateProcessGuard";
 import { existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from "fs";
 import AdmZip from "adm-zip";
 import path from "path";
@@ -13,6 +8,7 @@ import { NonKYCCandles, NonKYCResponse } from "./NonKYC/NonKYC";
 import { DexTradeSocketGraphEvent } from "./DexTrade/DexTrade";
 import { logToFile } from "../Utilities/LogToFile";
 import { withRetry } from "../Utilities/Retry";
+import { markSymbolCandleSubscribed, markSymbolCandleUpdate } from "../Utilities/botHealth";
 
 export interface Candlesticks {
   [symbol: string]: {
@@ -44,7 +40,7 @@ export async function getLastCandlesticks(
   exchange: Exchange,
   symbol: string,
   interval: CandlestickInterval,
-  limit: number = 500,
+  limit: number = 500
 ): Promise<Candlestick[]> {
   return new Promise<Candlestick[]>(async (resolve, _reject) => {
     if (isBinance(exchange)) {
@@ -52,8 +48,8 @@ export async function getLastCandlesticks(
         toSymbolKey(symbol),
         interval,
         (_error: any, ticks: any, symbol: string, interval: string) => {
-          if (ticks === undefined || !Array.isArray(ticks)) {
-            return resolve([]);
+	if (ticks === undefined || !Array.isArray(ticks)) {
+		return resolve([]);
           }
           const parsedData: Candlestick[] = ticks.map((candle: string[]) => {
             const openTime = Number.isFinite(parseFloat(candle[0])) ? parseFloat(candle[0]) : 0;
@@ -77,7 +73,7 @@ export async function getLastCandlesticks(
           }).filter(candle => candle.open > 0 || candle.close > 0 || candle.high > 0 || candle.low > 0);
           resolve(parsedData);
         },
-        { limit: limit },
+        { limit: limit }
       );
     } else if (isNonKYC(exchange)) {
       const candlesticks = await exchange.getCandles(symbol, null, null, getMinutesFromInterval(interval), limit, 1);
@@ -162,14 +158,14 @@ export const listenForCandlesticks = async (
   candleStore: Candlesticks,
   historyLength: number,
   symbolOptions: SymbolOptions,
-  callback: (candlesticks: Candlesticks) => Promise<void>,
+  callback: (candlesticks: Candlesticks) => Promise<void>
 ): Promise<void> => {
   console.log("Start listening for Candlesticks");
   if (!Array.isArray(intervals) || intervals.length === 0) {
     throw new Error(
       `listenForCandlesticks: symbol="${symbol}" puuttuva tai virheellinen timeframes (${String(
-        intervals,
-      )}). Tarkista symbolin konfigissa taulukko \`timeframes\` — grid/sim-siirto ei säilyttänyt aiempia timeframeja.`,
+        intervals
+      )}). Tarkista symbolin konfigissa taulukko \`timeframes\` — grid/sim-siirto ei säilyttänyt aiempia timeframeja.`
     );
   }
   const maxCandlesticks = 10000;
@@ -179,6 +175,7 @@ export const listenForCandlesticks = async (
       timeframes.push(symbolOptions.trend.timeframe);
     }
   }
+  markSymbolCandleSubscribed(symbol, timeframes);
   for (let i = 0; i < timeframes.length; i++) {
     if (isBinance(exchange)) {
       const websocket = exchange.websockets;
@@ -219,14 +216,16 @@ export const listenForCandlesticks = async (
         };
         if (candleStore[symbol] === undefined) {
           const oldCandlesticks = await withRetry(() =>
-            getLastCandlesticks(exchange, symbol, timeframes[i], historyLength),
+            getLastCandlesticks(exchange, symbol, timeframes[i], historyLength)
           );
           candleStore[symbol] = {
             [timeframes[i]]: [...oldCandlesticks, newCandlestick],
           };
         } else if (candleStore[symbol][timeframes[i]] === undefined) {
           candleStore[symbol][timeframes[i]] = [
-            ...(await withRetry(() => getLastCandlesticks(exchange, symbol, timeframes[i], historyLength))),
+            ...(await withRetry(() =>
+              getLastCandlesticks(exchange, symbol, timeframes[i], historyLength)
+            )),
             newCandlestick,
           ];
         } else if (newCandlestick.isFinal === true) {
@@ -235,8 +234,7 @@ export const listenForCandlesticks = async (
           const arr = candleStore[symbol][timeframes[i]];
           const lastCandle = arr[arr.length - 1];
           const lastStart = lastCandle?.startTime ?? lastCandle?.time;
-          const isNewPeriod =
-            lastStart !== undefined && newCandlestick.startTime !== undefined && lastStart !== newCandlestick.startTime;
+          const isNewPeriod = lastStart !== undefined && newCandlestick.startTime !== undefined && lastStart !== newCandlestick.startTime;
           if (isNewPeriod) {
             arr.push(newCandlestick);
           } else {
@@ -247,6 +245,7 @@ export const listenForCandlesticks = async (
         if (arrForSlice?.length > maxCandlesticks) {
           candleStore[symbol][timeframes[i]] = arrForSlice.slice(-maxCandlesticks);
         }
+        markSymbolCandleUpdate(symbol);
         if (!(symbolOptions.stopLoss?.hit === true && symbolOptions.stopLoss?.stopTrading === true)) {
           await callback(candleStore);
         } else {
@@ -304,13 +303,17 @@ export const listenForCandlesticks = async (
             if (candleStore[toSymbolKey(symbol)] === undefined) {
               candleStore[toSymbolKey(symbol)] = {
                 [timeframes[i]]: [
-                  ...(await withRetry(() => getLastCandlesticks(exchange, symbol, timeframes[i], historyLength))),
+                  ...(await withRetry(() =>
+                    getLastCandlesticks(exchange, symbol, timeframes[i], historyLength)
+                  )),
                   newCandlestick,
                 ],
               };
             } else if (candleStore[toSymbolKey(symbol)][timeframes[i]] === undefined) {
               candleStore[toSymbolKey(symbol)][timeframes[i]] = [
-                ...(await withRetry(() => getLastCandlesticks(exchange, symbol, timeframes[i], historyLength))),
+                ...(await withRetry(() =>
+                  getLastCandlesticks(exchange, symbol, timeframes[i], historyLength)
+                )),
                 newCandlestick,
               ];
             } else if (newCandlestick.isFinal === true) {
@@ -325,6 +328,7 @@ export const listenForCandlesticks = async (
               candleStore[toSymbolKey(symbol)][timeframes[i]] = arrForSliceN.slice(-maxCandlesticks);
             }
             if (!(symbolOptions.stopLoss?.hit === true && symbolOptions.stopLoss?.stopTrading === true)) {
+              markSymbolCandleUpdate(symbol);
               await callback(candleStore);
             } else {
               exchange.unsubscribeCandles(symbol, getMinutesFromInterval(timeframes[i]));
@@ -332,7 +336,7 @@ export const listenForCandlesticks = async (
             }
           }
         },
-        10,
+        10
       );
     } else if (isDexTrade(exchange)) {
       console.log("DexTrade: Subscribe to candles");
@@ -609,7 +613,7 @@ export const formatSimulationHistoryPeriodFi = (years: number | undefined | null
  */
 export const filterCandlesticksBySimulationHistoryYears = (
   candles: Candlestick[],
-  years: number | undefined | null,
+  years: number | undefined | null
 ): Candlestick[] => {
   if (candles.length === 0) {
     return candles;
@@ -627,7 +631,7 @@ export const filterCandlesticksBySimulationHistoryYears = (
  */
 export const formatSimulationCandleHistoryFi = (
   candles: Candlestick[],
-  requestedHistoryYears: number | undefined | null,
+  requestedHistoryYears: number | undefined | null
 ): string => {
   if (candles.length === 0) {
     return "Simulaatio: ei kynttilöitä (tyhjä joukko rajauksen jälkeen). Tarkista data tai simulationHistoryYears.";
@@ -671,12 +675,14 @@ export const downloadHistoricalCandlesticks = async (
     month: number;
     monthIndex: number;
     monthTotal: number;
-  }) => void,
+  }) => void
 ): Promise<Candlestick[]> => {
   let allCandlesticks: Candlestick[] = [];
   const symTotal = symbols?.length ?? 0;
   for (let symbolIndex = 0; symbolIndex < symbols?.length; symbolIndex++) {
-    console.log(`Downloading symbol ${symbolIndex + 1}/${symTotal}: ${symbols[symbolIndex]} candlesticks.`);
+    console.log(
+      `Downloading symbol ${symbolIndex + 1}/${symTotal}: ${symbols[symbolIndex]} candlesticks.`
+    );
     for (let intervalIndex = 0; intervalIndex < intervals?.length; intervalIndex++) {
       let currentYear = new Date().getFullYear();
       let currentMonth = new Date().getMonth() + 1;
@@ -707,7 +713,7 @@ export const downloadHistoricalCandlesticks = async (
           });
           if (monthFileIndex === 1 || monthFileIndex % 6 === 0) {
             console.log(
-              `  … ${symbols[symbolIndex]} ${intervals[intervalIndex]} ${formattedYear}-${formattedMonth} (kuukausi ${monthFileIndex})`,
+              `  … ${symbols[symbolIndex]} ${intervals[intervalIndex]} ${formattedYear}-${formattedMonth} (kuukausi ${monthFileIndex})`
             );
           }
           const url = `https://data.binance.vision/data/spot/monthly/klines/${symbols[symbolIndex]
@@ -734,7 +740,7 @@ export const downloadHistoricalCandlesticks = async (
             for (let candledataIndex = 0; candledataIndex < candledata.length; candledataIndex++) {
               if (candledataIndex > 0 && candledataIndex % 10000 === 0) {
                 // Avoid long UI/network starvation while parsing huge CSV chunks.
-                await new Promise<void>((resolve) => setImmediate(resolve));
+                await yieldToEventLoop(candledataIndex % 40000 === 0);
               }
               const row = candledata[candledataIndex];
               const candlestick: Candlestick = {
@@ -804,11 +810,13 @@ export const simulateListenForCandlesticks = async (
   onCandleProgress?: (info: SimulateListenCandleProgress) => void,
   startCandleIndex?: number,
   /** Per erä (esim. symbolOptions.stopLoss) — sama idea kuin live-kuuntelussa. */
-  isStopTrading?: () => boolean,
+  isStopTrading?: () => boolean
 ): Promise<SimulateListenOutcome> => {
   const maxCandlesticks = 1_000_000;
-  const yieldEveryCandles = 100;
-  const yieldEveryMs = 40;
+  const yieldCfg = resolveSimYieldConfig();
+  const yieldEveryCandles = yieldCfg.everyCandles;
+  const yieldEveryMs = yieldCfg.everyMs;
+  const timerEveryNYields = yieldCfg.timerEveryNYields;
   const total = candlesticks.length;
   const start = Math.max(0, Math.floor(startCandleIndex ?? 0));
   /** ~25 progress lines max for large runs */
@@ -819,6 +827,7 @@ export const simulateListenForCandlesticks = async (
   let stopTradingHalted = false;
   let stopTradingAtCandleIndex: number | undefined;
   let lastYieldAt = Date.now();
+  let yieldCount = 0;
 
   const stopTradingActive = (): boolean => {
     if (typeof isStopTrading === "function" && isStopTrading()) return true;
@@ -827,11 +836,11 @@ export const simulateListenForCandlesticks = async (
   if (progress && total > 0) {
     if (start > 0) {
       console.log(
-        `Simulaatio: erä ${progress.passIndex}/${progress.passTotal} (${progress.focusSymbol}) — jatketaan kynttilästä ${start + 1}/${total}.`,
+        `Simulaatio: erä ${progress.passIndex}/${progress.passTotal} (${progress.focusSymbol}) — jatketaan kynttilästä ${start + 1}/${total}.`
       );
     } else {
       console.log(
-        `Simulaatio: erä ${progress.passIndex}/${progress.passTotal} (${progress.focusSymbol}) — käydään läpi ${total} kynttilätapahtumaa.`,
+        `Simulaatio: erä ${progress.passIndex}/${progress.passTotal} (${progress.focusSymbol}) — käydään läpi ${total} kynttilätapahtumaa.`
       );
     }
     onCandleProgress?.({
@@ -844,9 +853,13 @@ export const simulateListenForCandlesticks = async (
   }
   for (let candleIndex = start; candleIndex < candlesticks.length; candleIndex++) {
     const now = Date.now();
-    if ((candleIndex > 0 && candleIndex % yieldEveryCandles === 0) || now - lastYieldAt >= yieldEveryMs) {
-      // Keep HTTP endpoints responsive during long replay loops.
-      await new Promise<void>((resolve) => setImmediate(resolve));
+    if (
+      (candleIndex > 0 && candleIndex % yieldEveryCandles === 0) ||
+      now - lastYieldAt >= yieldEveryMs
+    ) {
+      // setImmediate pitää HTTP:n elossa; ajoittainen setTimeout(1) antaa Windows DWM:lle CPU-aikaa.
+      yieldCount += 1;
+      await yieldToEventLoop(yieldCount % timerEveryNYields === 0);
       lastYieldAt = Date.now();
     }
     if (shouldAbort && shouldAbort()) {
@@ -882,7 +895,7 @@ export const simulateListenForCandlesticks = async (
       if (done === 1 || done === total || done - lastReported >= reportEvery) {
         const pct = ((done / total) * 100).toFixed(1);
         console.log(
-          `Simulaatio: erä ${progress.passIndex}/${progress.passTotal} (${progress.focusSymbol}) — kynttilät ${done}/${total} (${pct} %).`,
+          `Simulaatio: erä ${progress.passIndex}/${progress.passTotal} (${progress.focusSymbol}) — kynttilät ${done}/${total} (${pct} %).`
         );
         onCandleProgress?.({
           passIndex: progress.passIndex,
@@ -932,7 +945,7 @@ export const simulateListenForCandlesticks = async (
   }
   if (progress && total > 0 && !replayAborted && !stopTradingHalted) {
     console.log(
-      `Simulaatio: erä ${progress.passIndex}/${progress.passTotal} (${progress.focusSymbol}) — kynttilöiden läpikäynti valmis.`,
+      `Simulaatio: erä ${progress.passIndex}/${progress.passTotal} (${progress.focusSymbol}) — kynttilöiden läpikäynti valmis.`
     );
     onCandleProgress?.({
       passIndex: progress.passIndex,
@@ -943,12 +956,14 @@ export const simulateListenForCandlesticks = async (
     });
   } else if (stopTradingHalted && progress && total > 0) {
     console.log(
-      `Simulaatio: erä ${progress.passIndex}/${progress.passTotal} (${progress.focusSymbol}) — replay pysäytettiin (stopTrading / stop-loss).`,
+      `Simulaatio: erä ${progress.passIndex}/${progress.passTotal} (${progress.focusSymbol}) — replay pysäytettiin (stopTrading / stop-loss).`
     );
   }
   return {
     userAborted: replayAborted,
     abortedAtCandleIndex,
-    ...(stopTradingHalted ? { stopTradingHalted: true as const, stopTradingAtCandleIndex } : {}),
+    ...(stopTradingHalted
+      ? { stopTradingHalted: true as const, stopTradingAtCandleIndex }
+      : {}),
   };
 };

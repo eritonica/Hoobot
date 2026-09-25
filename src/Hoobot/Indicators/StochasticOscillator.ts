@@ -4,18 +4,18 @@ import { ConsoleLogger } from "../Utilities/ConsoleLogger";
 import { calculateRSI } from "./RSI";
 
 export const calculateStochasticOscillator = (
-  candles: Candlestick[],
-  kPeriod: number = 14,
-  dPeriod: number = 1,
-  smoothing: number = 3,
+  candles: Candlestick[], 
+  kPeriod: number = 14, 
+  dPeriod: number = 1, 
+  smoothing: number = 3, 
 ): [number[], number[]] => {
   const kValues: number[] = [];
   const dValues: number[] = [];
   for (let i = kPeriod - 1; i < candles.length; i++) {
     const slice = candles.slice(i - kPeriod + 1, i + 1);
-    const highestHigh = Math.max(...slice.map((candle) => candle.high));
-    const lowestLow = Math.min(...slice.map((candle) => candle.low));
-    if (highestHigh !== lowestLow) {
+    const highestHigh = Math.max(...slice.map(candle => candle.high));
+    const lowestLow = Math.min(...slice.map(candle => candle.low));
+    if (highestHigh !== lowestLow) { 
       const currentClose = candles[i].close;
       const kValue = ((currentClose - lowestLow) / (highestHigh - lowestLow)) * 100;
       kValues.push(kValue);
@@ -25,7 +25,7 @@ export const calculateStochasticOscillator = (
         dValues.push(dValue);
       }
     } else {
-      kValues.push(50);
+      kValues.push(50); 
     }
   }
   if (smoothing > 1) {
@@ -36,16 +36,17 @@ export const calculateStochasticOscillator = (
     }
   }
   return [kValues, dValues];
-};
+}
+
 
 export const calculateStochasticRSI = (
-  candles: Candlestick[],
-  lengthRSI: number = 14,
-  lengthStoch: number = 14,
-  kSmoothing: number = 3,
-  dSmoothing: number = 3,
-  rsiSmoothingType: string = "EMA",
-  source: string = "close",
+  candles: Candlestick[], 
+  lengthRSI: number = 14, 
+  lengthStoch: number = 14, 
+  kSmoothing: number = 3, 
+  dSmoothing: number = 3, 
+  rsiSmoothingType: string = "EMA", 
+  source: string = 'close'
 ): [number[], number[]] => {
   const rsiValues = calculateRSI(candles, lengthRSI, rsiSmoothingType, 1, source);
   const kValues: number[] = [];
@@ -54,7 +55,7 @@ export const calculateStochasticRSI = (
     const slice = rsiValues.slice(i - lengthStoch + 1, i + 1);
     const highestRSI = Math.max(...slice);
     const lowestRSI = Math.min(...slice);
-    if (highestRSI !== lowestRSI) {
+    if (highestRSI !== lowestRSI) { 
       const currentRSI = rsiValues[i];
       const kValue = ((currentRSI - lowestRSI) / (highestRSI - lowestRSI)) * 100;
       kValues.push(kValue);
@@ -62,9 +63,9 @@ export const calculateStochasticRSI = (
         const dSlice = kValues.slice(kValues.length - dSmoothing);
         const dValue = dSlice.reduce((sum, value) => sum + value, 0) / dSmoothing;
         dValues.push(dValue);
-      } else {
-        kValues.push(50);
       }
+    } else {
+      kValues.push(50);
     }
   }
   if (rsiSmoothingType === "SMA") {
@@ -90,7 +91,7 @@ export const calculateStochasticRSI = (
       for (let i = kSmoothing; i < kValues.length; i++) {
         kValues[i] = alpha * kValues[i] + (1 - alpha) * kValues[i - 1];
       }
-    }
+    }  
     if (dSmoothing > 1) {
       let alpha = 2 / (dSmoothing + 1);
       dValues[dSmoothing - 1] = dValues.slice(0, dSmoothing).reduce((sum, value) => sum + value, 0) / dSmoothing;
@@ -101,15 +102,15 @@ export const calculateStochasticRSI = (
   }
 
   return [kValues, dValues];
-};
+}
 
 export const logStochasticOscillatorSignals = (
-  consoleLogger: ConsoleLogger,
-  stochasticOscillator: [number[], number[]],
+  consoleLogger: ConsoleLogger, 
+  stochasticOscillator: [number[], number[]]
 ) => {
   if (!stochasticOscillator?.[0]?.length || !stochasticOscillator?.[1]?.length) return;
   const lastKValue = stochasticOscillator[0][stochasticOscillator[0].length - 1];
-  const lastDValue = stochasticOscillator[1][stochasticOscillator[1].length - 1];
+  const lastDValue =  stochasticOscillator[1][stochasticOscillator[1].length - 1];
   if (lastKValue == null || lastDValue == null || typeof lastKValue !== "number") return;
   let signal = "Neutral";
   if (lastKValue > 80 || lastDValue > 80) {
@@ -132,9 +133,12 @@ export const logStochasticOscillatorSignals = (
     dValue: lastDValue.toFixed(7),
     signal: signal,
   });
-};
+}
 
-export const logStochasticRSISignals = (consoleLogger: ConsoleLogger, stochasticRSI: [number[], number[]]) => {
+export const logStochasticRSISignals = (
+  consoleLogger: ConsoleLogger, 
+  stochasticRSI: [number[], number[]]
+) => {
   if (!stochasticRSI?.[0]?.length || !stochasticRSI?.[1]?.length) return;
   const lastKValue = stochasticRSI[0][stochasticRSI[0].length - 1];
   const lastDValue = stochasticRSI[1][stochasticRSI[1].length - 1];
@@ -160,13 +164,13 @@ export const logStochasticRSISignals = (consoleLogger: ConsoleLogger, stochastic
     dValue: lastDValue.toFixed(7),
     signal: signal,
   });
-};
+}
 
 export const checkStochasticOscillatorSignals = (
   stochasticOscillator: [number[], number[]],
-  symbolOptions: SymbolOptions,
+  symbolOptions: SymbolOptions
 ) => {
-  let check = "SKIP";
+  let check = 'SKIP';
   if (symbolOptions.indicators !== undefined) {
     if (symbolOptions.indicators.so && symbolOptions.indicators.so.enabled) {
       if (
@@ -176,83 +180,78 @@ export const checkStochasticOscillatorSignals = (
       ) {
         return "HOLD";
       }
-      check = "HOLD";
+      check = 'HOLD';
       const K = stochasticOscillator[0][stochasticOscillator[0].length - 1];
       const prevK = stochasticOscillator[0][stochasticOscillator[0].length - 2];
-      const D = stochasticOscillator[1][stochasticOscillator[1].length - 1];
-      const prevD = stochasticOscillator[1][stochasticOscillator[1].length - 2];
+      const D =  stochasticOscillator[1][stochasticOscillator[1].length - 1];
+      const prevD =  stochasticOscillator[1][stochasticOscillator[1].length - 2];
       const KDHigher = K > D;
       const DKHigher = D > K;
       const KDCrossover = K > D && prevK < prevD;
-      const DKCrossover = K < D && prevK > prevD;
-      const overboughtTreshold =
-        symbolOptions.indicators.so.tresholds.overbought !== undefined
-          ? symbolOptions.indicators.so.tresholds.overbought
-          : 80;
-      const oversoldTreshold =
-        symbolOptions.indicators.so.tresholds.oversold !== undefined
-          ? symbolOptions.indicators.so.tresholds.oversold
-          : 20;
+      const DKCrossover = K < D && prevK > prevD 
+      const overboughtTreshold = symbolOptions.indicators.so.tresholds.overbought !== undefined ? symbolOptions.indicators.so.tresholds.overbought : 80;
+      const oversoldTreshold = symbolOptions.indicators.so.tresholds.oversold !== undefined ? symbolOptions.indicators.so.tresholds.oversold : 20; 
       const rising = K > prevK && D > prevD;
-      const dropping = K < prevK && D > prevD;
-      if (D < oversoldTreshold && rising && KDHigher) {
+      const dropping = K < prevK && D < prevD;
+      if ((D < oversoldTreshold && rising && KDHigher)) {
         symbolOptions.indicators.so.weight = 1.1;
-        check = "BUY";
-      } else if (D > overboughtTreshold && dropping && DKHigher) {
+        check = 'BUY';
+      } else if((D > overboughtTreshold && dropping && DKHigher)) {
         symbolOptions.indicators.so.weight = 1.1;
-        check = "SELL";
+        check = 'SELL';
       } else if (D < oversoldTreshold && KDCrossover) {
         symbolOptions.indicators.so.weight = 1;
-        check = "BUY";
+        check = 'BUY';
       } else if (D > overboughtTreshold && DKCrossover) {
         symbolOptions.indicators.so.weight = 1;
-        check = "SELL";
+        check = 'SELL';
       }
     }
   }
   return check;
-};
+}
 
-export const checkStochasticRSISignals = (stochasticRSI: [number[], number[]], symbolOptions: SymbolOptions) => {
-  let check = "SKIP";
+export const checkStochasticRSISignals = (
+  stochasticRSI: [number[], number[]],
+  symbolOptions: SymbolOptions
+) => {
+  let check = 'SKIP';
   if (symbolOptions.indicators !== undefined) {
     if (symbolOptions.indicators.srsi && symbolOptions.indicators.srsi.enabled) {
-      if (!stochasticRSI?.[0]?.length || !stochasticRSI?.[1]?.length || stochasticRSI[0].length < 2) {
+      if (
+        !stochasticRSI?.[0]?.length ||
+        !stochasticRSI?.[1]?.length ||
+        stochasticRSI[0].length < 2
+      ) {
         return "HOLD";
       }
-      check = "HOLD";
+      check = 'HOLD';
       const K = stochasticRSI[0][stochasticRSI[0].length - 1];
       const prevK = stochasticRSI[0][stochasticRSI[0].length - 2];
       const D = stochasticRSI[1][stochasticRSI[1].length - 1];
-      const prevD = stochasticRSI[1][stochasticRSI[1].length - 2];
+      const prevD =  stochasticRSI[1][stochasticRSI[1].length - 2];
       const KDHigher = K > D;
       const DKHigher = D > K;
       const KDCrossover = K > D && prevK < prevD;
-      const DKCrossover = K < D && prevK > prevD;
-      const overboughtTreshold =
-        symbolOptions.indicators.srsi.tresholds.overbought !== undefined
-          ? symbolOptions.indicators.srsi.tresholds.overbought
-          : 80;
-      const oversoldTreshold =
-        symbolOptions.indicators.srsi.tresholds.oversold !== undefined
-          ? symbolOptions.indicators.srsi.tresholds.oversold
-          : 20;
+      const DKCrossover = K < D && prevK > prevD 
+      const overboughtTreshold = symbolOptions.indicators.srsi.tresholds.overbought !== undefined ? symbolOptions.indicators.srsi.tresholds.overbought : 80;
+      const oversoldTreshold = symbolOptions.indicators.srsi.tresholds.oversold !== undefined ? symbolOptions.indicators.srsi.tresholds.oversold : 20; 
       const rising = K > prevK && D > prevD;
-      const dropping = K < prevK && D > prevD;
+      const dropping = K < prevK && D < prevD;
       if (rising && KDHigher) {
+        symbolOptions.indicators.srsi.weight = 1; 
+        check = 'BUY';
+      } else if(dropping && DKHigher) {
         symbolOptions.indicators.srsi.weight = 1;
-        check = "BUY";
-      } else if (dropping && DKHigher) {
-        symbolOptions.indicators.srsi.weight = 1;
-        check = "SELL";
+        check = 'SELL';
       } else if (D < oversoldTreshold && KDCrossover) {
         symbolOptions.indicators.srsi.weight = 1.5;
-        check = "BUY";
+        check = 'BUY';
       } else if (D > overboughtTreshold && DKCrossover) {
         symbolOptions.indicators.srsi.weight = 1.5;
-        check = "SELL";
+        check = 'SELL';
       }
     }
   }
   return check;
-};
+}

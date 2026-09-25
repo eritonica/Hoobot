@@ -1,15 +1,15 @@
-import { Candlestick } from "../Exchanges/Candlesticks";
-import { ConfigOptions, SymbolOptions } from "../Utilities/Args";
-import { ConsoleLogger } from "../Utilities/ConsoleLogger";
-import { calculateEMA } from "./EMA";
-import { calculateSMA } from "./SMA";
+import { Candlestick } from '../Exchanges/Candlesticks';
+import { ConfigOptions, SymbolOptions } from '../Utilities/Args';
+import { ConsoleLogger } from '../Utilities/ConsoleLogger';
+import { calculateEMA } from './EMA';
+import { calculateSMA } from './SMA';
 
 export const calculateBollingerBands = (
   candles: any[],
   average: string = "SMA",
   period: number,
   multiplier: number = 2,
-  source: string = "close",
+  source: string = "close"
 ): [number[], number[], number[]] => {
   const empty: [number[], number[], number[]] = [[], [], []];
   if (!Array.isArray(candles) || candles.length === 0 || !Number.isFinite(period) || period < 1) {
@@ -29,28 +29,28 @@ export const calculateBollingerBands = (
   let prices: number[] = [];
   if (source == "close") {
     prices = candles.map((candle) => parseFloat(candle.close));
-  } else if (source == "open") {
+  } else if(source == 'open') {
     prices = candles.map((candle) => parseFloat(candle.open));
-  } else if (source == "high") {
+  } else if(source == 'high') {
     prices = candles.map((candle) => parseFloat(candle.high));
-  } else if (source == "low") {
+  } else if(source == 'low') {
     prices = candles.map((candle) => parseFloat(candle.low));
   }
   for (let i = period - 1; i < prices.length; i++) {
-    const slice = prices.slice(i - period + 1, i + 1);
-    const variance = slice.reduce((acc, val) => acc + Math.pow(val - values[i - period + 1], 2), 0) / period;
-    const stdDev = Math.sqrt(variance);
-    standardDeviations.push(stdDev);
+      const slice = prices.slice(i - period + 1, i + 1);
+      const variance = slice.reduce((acc, val) => acc + Math.pow(val - values[i - period + 1], 2), 0) / period;
+      const stdDev = Math.sqrt(variance);
+      standardDeviations.push(stdDev);
   }
-  const upperBands = values.map((sma, i) => sma + standardDeviations[i] * multiplier);
-  const lowerBands = values.map((sma, i) => sma - standardDeviations[i] * multiplier);
+  const upperBands = values.map((sma, i) => sma + (standardDeviations[i] * multiplier));
+  const lowerBands = values.map((sma, i) => sma - (standardDeviations[i] * multiplier));
   return [values, upperBands, lowerBands];
-};
+}
 
 export const logBollingerBandsSignals = (
   consoleLogger: ConsoleLogger,
   candlesticks: Candlestick[],
-  bollingerBands: [number[], number[], number[]],
+  bollingerBands: [number[], number[], number[]]
 ) => {
   if (!candlesticks?.length || !bollingerBands?.[1]?.length || !bollingerBands?.[2]?.length) return;
   const lastCandle = candlesticks[candlesticks.length - 1];
@@ -79,28 +79,29 @@ export const logBollingerBandsSignals = (
     upper: currentUpperBand.toFixed(7),
     lower: currentLowerBand.toFixed(7),
     signal: signal,
-  });
-};
+  })
+}
 
 export const checkBollingerBandsSignals = (
   candlesticks: Candlestick[],
   bollingerBands: [number[], number[], number[]],
   symbolOptions: SymbolOptions,
 ) => {
-  let check = "SKIP";
+  let check = 'SKIP';
   if (symbolOptions.indicators !== undefined) {
-    if (symbolOptions.indicators.bb !== undefined) {
+    if(symbolOptions.indicators.bb !== undefined) {
       if (symbolOptions.indicators.bb.enabled) {
         if (!candlesticks?.length) {
           return "HOLD";
         }
-        check = "HOLD";
+        check = 'HOLD';
         const upperSeries = bollingerBands[1];
         const lowerSeries = bollingerBands[2] ?? bollingerBands[0];
         if (!upperSeries?.length || !lowerSeries?.length || !candlesticks?.length) {
           return "HOLD";
         }
-        for (let i = 1; i < symbolOptions.indicators.bb.length + 1; i++) {
+        const histLen = Math.max(1, symbolOptions.indicators.bb?.history ?? 1);
+        for (let i = 1; i < histLen + 1; i++) {
           const currentLow = candlesticks[candlesticks.length - i].low;
           const currentHigh = candlesticks[candlesticks.length - i].high;
           const currentUpperBand = upperSeries[upperSeries.length - i];
@@ -108,10 +109,10 @@ export const checkBollingerBandsSignals = (
           const isAboveUpperBand = currentHigh > currentUpperBand;
           const isBelowLowerBand = currentLow < currentLowerBand;
           if (isAboveUpperBand) {
-            check = "SELL";
+            check = 'SELL';
             break;
           } else if (isBelowLowerBand) {
-            check = "BUY";
+            check = 'BUY';
             break;
           }
         }

@@ -1,36 +1,33 @@
-import { CacheType, ChatInputCommandInteraction, SlashCommandBuilder } from "discord.js";
-import { getCurrentBalances } from "../../Hoobot/Exchanges/Balances";
-import { Exchange, getExchangeByName } from "../../Hoobot/Exchanges/Exchange";
-import { ConfigOptions } from "../../Hoobot/Utilities/Args";
+import { CacheType, ChatInputCommandInteraction, SlashCommandBuilder } from 'discord.js';
+import { getCurrentBalances } from '../../Hoobot/Exchanges/Balances';
+import { Exchange, getExchangeByName } from '../../Hoobot/Exchanges/Exchange';
+import { ConfigOptions } from '../../Hoobot/Utilities/Args';
 
-export interface balancesWithUSDT {
+export interface balancesWithUSDT { 
   [symbol: string]: {
-    amount: number;
-    amountInUSDT: number;
-  };
+    amount: number,
+    amountInUSDT: number,
+  }; 
 }
 
 export interface result {
-  [symbol: string]: string;
+  [symbol: string]: string,
 }
 
 export default {
   builder: new SlashCommandBuilder()
     .setName("balances")
     .setDescription("Replices with exchange balances!")
-    .addStringOption((option) =>
-      option.setName("exchange").setDescription("The name of exchange to check").setRequired(true),
-    ),
-  execute: async (
-    interaction: ChatInputCommandInteraction<CacheType>,
-    exchanges: Exchange[],
-    options: ConfigOptions,
-  ) => {
+    .addStringOption(option =>
+      option.setName('exchange')
+        .setDescription('The name of exchange to check')
+        .setRequired(true)),
+  execute: async (interaction: ChatInputCommandInteraction<CacheType>, exchanges: Exchange[], options: ConfigOptions) => {
     await interaction.deferReply();
-    const exchangeName = interaction.options.getString("exchange");
+    const exchangeName = interaction.options.getString('exchange'); 
     if (exchangeName !== null) {
-      const exchangeByName = getExchangeByName(exchangeName, exchanges, options);
-      if (exchangeByName !== undefined) {
+      const exchangeByName = getExchangeByName(exchangeName, exchanges, options); 
+      if(exchangeByName !== undefined) {
         const sortedBalances = await getCurrentBalances(exchangeByName);
         const resultBalances = Object.entries(sortedBalances).map(
           ([symbol, data]) => {
@@ -46,5 +43,5 @@ export default {
     } else {
       await interaction.editReply("Please provide a valid exchange name to check.");
     }
-  },
-};
+  }
+}

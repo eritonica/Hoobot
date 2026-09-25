@@ -1025,3 +1025,41 @@ export async function executeSimGrid(
 
   return summary;
 }
+
+/**
+ * If grid-progress-summary.json is missing or has no results (crash mid-write), restore it from the newest
+ * grid-progress-summary-*.bak.json backup that has successful results.
+ */
+export function recoverGridProgressFromBackup(outDir: string): {
+  recovered: boolean;
+  fromFile?: string;
+  okResults: number;
+} {
+  const progressFile = path.join(outDir, "grid-progress-summary.json");
+  const countOk = (file: string): number => {
+    try {
+      const raw = fs.readFileSync(file, "utf-8");
+      const parsed = JSON.parse(raw) as { results?: Array<{ result?: { ok?: boolean } }> };
+      return Array.isArray(parsed.results) ? parsed.results.filter((r) => r?.result?.ok === true).length : 0;
+    } catch {
+      return 0;
+    }
+  };
+  if (fs.existsSync(progressFile) && countOk(progressFile) > 0) {
+    return { recovered: false, okResults: 0 };
+  }
+  const backups = fs
+    .readdirSync(outDir)
+    .filter((f) => /^grid-progress-summary-\d+\.bak\.json$/.test(f))
+    .sort()
+    .reverse();
+  for (const name of backups) {
+    const full = path.join(outDir, name);
+    const okResults = countOk(full);
+    if (okResults > 0) {
+      fs.copyFileSync(full, progressFile);
+      return { recovered: true, fromFile: name, okResults };
+    }
+  }
+  return { recovered: false, okResults: 0 };
+}

@@ -10,8 +10,8 @@ export interface macd {
 }
 
 export const logMACDSignals = (consoleLogger: ConsoleLogger, macd: macd) => {
-  if (!macd?.macdLine?.length || macd.macdLine.length < 2 || !macd.signalLine?.length || !macd.histogram?.length)
-    return;
+  if (!macd?.macdLine?.length || macd.macdLine.length < 2 ||
+      !macd.signalLine?.length || !macd.histogram?.length) return;
   const macdLine = macd.macdLine[macd.macdLine.length - 1];
   const signalLine = macd.signalLine[macd.signalLine.length - 1];
   const histogram = macd.histogram[macd.histogram.length - 1];
@@ -71,7 +71,7 @@ export const calculateMACD = (
   shortEMA: number,
   longEMA: number,
   signalLength = 9,
-  source: string,
+  source: string
 ): macd => {
   const empty = { macdLine: [] as number[], signalLine: [] as number[], histogram: [] as number[] };
   if (!Array.isArray(candles) || candles.length === 0) {
@@ -98,7 +98,7 @@ export const calculateMACD = (
   for (let i = 0; i < shortEMAs.length; i++) {
     macdLine.push(shortEMAs[i] - longEMAs[i]);
   }
-  const signalCandles = macdLine.map((value) => ({ close: value }) as Candlestick);
+  const signalCandles = macdLine.map((value) => ({ close: value } as Candlestick));
   let signalLine = calculateEMA(signalCandles, signalLength, "close");
   if (signalLine.length < macdLine.length) {
     macdLine = macdLine.slice(-signalLine.length);
@@ -117,12 +117,17 @@ export const calculateMACD = (
   };
 };
 
-export const checkMACDSignals = (macd: macd, symbolOptions: SymbolOptions) => {
+export const checkMACDSignals = (macd: macd | undefined, symbolOptions: SymbolOptions) => {
   let check = "SKIP";
   if (symbolOptions.indicators !== undefined) {
     if (symbolOptions.indicators.macd && symbolOptions.indicators.macd.enabled) {
       check = "HOLD";
-      if (macd.histogram.length < 2 || macd.macdLine.length < 2 || macd.signalLine.length < 2) {
+      if (
+        !macd ||
+        macd.histogram.length < 2 ||
+        macd.macdLine.length < 2 ||
+        macd.signalLine.length < 2
+      ) {
         return check;
       }
       const currentHistogram = macd.histogram[macd.histogram.length - 1];

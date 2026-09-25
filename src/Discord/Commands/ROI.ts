@@ -9,17 +9,12 @@ export default {
     .setName("roi")
     .setDescription("Calculates ROI since first recorded balance.")
     .addStringOption((option) =>
-      option.setName("exchange").setDescription("The name of exchange to check").setRequired(true),
+      option.setName("exchange").setDescription("The name of exchange to check").setRequired(true)
     ),
   execute: async (
-    interaction: {
-      options: any;
-      deferReply: () => Promise<unknown>;
-      editReply: (arg0: string) => Promise<unknown>;
-      reply: (arg0: string) => any;
-    },
+    interaction: { options: any; deferReply: () => Promise<unknown>; editReply: (arg0: string) => Promise<unknown>; reply: (arg0: string) => any },
     exchanges: Exchange[],
-    options: ConfigOptions,
+    options: ConfigOptions
   ) => {
     await interaction.deferReply();
     const exchangeName = interaction.options.getString("exchange");
@@ -29,7 +24,7 @@ export default {
         const currentBalances = await getCurrentBalances(exchangeByName);
         if (!fs.existsSync(`./logs/balances-${exchangeName}.json`)) {
           await interaction.editReply(
-            `There are no stored balances in /logs/balances-${exchangeName}.json file yet. Investigate!`,
+            `There are no stored balances in /logs/balances-${exchangeName}.json file yet. Investigate!`
           );
         } else {
           let storedBalances: unknown;
@@ -63,7 +58,7 @@ export default {
             return Object.values(balances).reduce((acc, balance) => acc + balance.usdt, 0);
           });
           const validFiatBalances = totalFiatBalances.filter(
-            (balance: number) => typeof balance === "number" && !isNaN(balance),
+            (balance: number) => typeof balance === "number" && !isNaN(balance)
           );
           const maxFiat = validFiatBalances.length > 0 ? Math.max(...validFiatBalances) : totalFirstFiat;
           const maxDiff = maxFiat - totalFirstFiat;
@@ -72,10 +67,10 @@ export default {
           let msg = "```";
           msg += `Initial Balance: ${totalFirstFiat.toFixed(2)} USDT\r\n\r\n`;
           msg += `Current Balance: ${totalCurrentFiat.toFixed(2)} USDT\r\nCurrent Difference: ${diff.toFixed(
-            2,
+            2
           )} USDT\r\nCurrent ROI: ${roi.toFixed(2)} %\r\n\r\n`;
           msg += `Max Balance: ${maxFiat.toFixed(2)} USDT\r\nMax Difference: ${maxDiff.toFixed(
-            2,
+            2
           )} USDT\r\nMax ROI: ${maxRoi.toFixed(2)} %\r\n\r\n`;
           msg += "```";
           await interaction.editReply(msg);

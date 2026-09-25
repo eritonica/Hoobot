@@ -70,3 +70,8 @@ export function simulationModeErrorFi(mode: string | undefined): string | null {
   }
   return null;
 }
+
+/** Live-only settings that must not influence a simulation run (fees come from the config, not the account). */
+export function normalizeSimulationSymbolDefaults(symbolOptions: SymbolOptions): void {
+  symbolOptions.tradeFeePercentageAuto = false;
+}

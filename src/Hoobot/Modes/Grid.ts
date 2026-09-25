@@ -13,7 +13,7 @@ import { getTradeHistory, placeBuyOrder, placeSellOrder, delay } from "../Exchan
 import { Exchange } from "../Exchanges/Exchange";
 import { logToFile } from "../Utilities/LogToFile";
 import { cancelOrder, getOpenOrders, getOrder, Order } from "../Exchanges/Orders";
-import { getCurrentBalances } from "../Exchanges/Balances";
+import { assignCurrentBalances } from "../Exchanges/Balances";
 import { symbolFilters } from "../symbolFiltersStore";
 import { sendMessageToChannel } from "../../Discord/discord";
 
@@ -71,12 +71,14 @@ export const placeOrder = async (
   direction: string,
   price: number,
   quantityInBase: number,
-  exchangeOptions: ExchangeOptions,
+  exchangeOptions: ExchangeOptions
 ): Promise<Order> => {
+  // Grid always uses limit orders — never symbol liveOrderExecution market/aggressive settings.
+  const gridOrderOpts = { mode: "limit" as const };
   if (direction === "sell") {
-    let order = await placeSellOrder(exchange, exchangeOptions, symbol, quantityInBase, price);
-    if (order !== undefined && order.orderId) {
-      exchangeOptions.balances = await getCurrentBalances(exchange);
+    let order = await placeSellOrder(exchange, exchangeOptions, symbol, quantityInBase, price, 5, gridOrderOpts);
+    if (order !== undefined) {
+      await assignCurrentBalances(exchange, exchangeOptions);
       if (exchangeOptions.tradeHistory === undefined) {
         exchangeOptions.tradeHistory = {};
       }
@@ -84,9 +86,9 @@ export const placeOrder = async (
       return order;
     }
   } else if (direction === "buy") {
-    let order = await placeBuyOrder(exchange, exchangeOptions, symbol, quantityInBase, price);
-    if (order !== undefined && order.orderId) {
-      exchangeOptions.balances = await getCurrentBalances(exchange);
+    let order = await placeBuyOrder(exchange, exchangeOptions, symbol, quantityInBase, price, 5, gridOrderOpts);
+    if (order !== undefined) {
+      await assignCurrentBalances(exchange, exchangeOptions);
       if (exchangeOptions.tradeHistory === undefined) {
         exchangeOptions.tradeHistory = {};
       }
@@ -104,7 +106,7 @@ const placeGridOrders = async (
   grid: GridLevel[],
   _filter: Filter,
   exchangeOptions: ExchangeOptions,
-  symbolOptions: SymbolOptions,
+  symbolOptions: SymbolOptions
 ): Promise<void> => {
   const placedOrders = [];
   for (let i = 0; i < grid.length; i++) {
@@ -116,7 +118,7 @@ const placeGridOrders = async (
           grid[i].type,
           grid[i].price,
           parseFloat(grid[i].size),
-          exchangeOptions,
+          exchangeOptions
         );
         if (order?.orderId) {
           grid[i].orderId = order.orderId;
@@ -156,7 +158,7 @@ const rebalanceGrid = async (
   currentPrice: number,
   filter: Filter,
   exchangeOptions: ExchangeOptions,
-  symbolOptions: SymbolOptions,
+  symbolOptions: SymbolOptions
 ): Promise<void> => {
   const openOrders = await getOpenOrders(exchange, symbol);
 
@@ -205,7 +207,7 @@ const manageGridOrders = async (
   _filter: Filter,
   processOptions: ConfigOptions,
   exchangeOptions: ExchangeOptions,
-  symbolOptions: SymbolOptions,
+  symbolOptions: SymbolOptions
 ): Promise<boolean> => {
   let orderExecuted = false;
   for (var i = 0; i < grid.length; i++) {
@@ -233,7 +235,7 @@ const manageGridOrders = async (
           sendMessageToChannel(discord, processOptions.discord?.channelId, msg);
           consoleLogger.push(
             `Order executed`,
-            `Type: ${grid[i].type}, Price: ${grid[i].price}, OrderID: ${grid[i].orderId}`,
+            `Type: ${grid[i].type}, Price: ${grid[i].price}, OrderID: ${grid[i].orderId}`
           );
 
           // Calculate new order details
@@ -244,7 +246,7 @@ const manageGridOrders = async (
           const newOrderPrice = grid[i].type === "buy" ? grid[i].price + step : grid[i].price - step;
 
           // Use configured fees or default to 0.2%
-          const fees = symbolOptions.tradingFeePercentage ?? 0.2;
+          const fees = symbolOptions.tradeFeePercentage ?? 0.2;
           const potentialProfit = calculatePotentialProfit(grid[i].price, newOrderPrice, fees);
           const minimumProfit =
             newDirection === "buy" ? symbolOptions.profit?.minimumBuy || 0 : symbolOptions.profit?.minimumSell || 0;
@@ -278,7 +280,7 @@ const manageGridOrders = async (
 
             consoleLogger.push(
               `Placed new ${newDirection} order`,
-              `Price: ${newOrderPrice}, OrderID: ${grid[i].orderId}`,
+              `Price: ${newOrderPrice}, OrderID: ${grid[i].orderId}`
             );
             } catch (error: unknown) {
               const errorMessage = error instanceof Error ? error.message : String(error);
@@ -290,8 +292,9 @@ const manageGridOrders = async (
           } else {
             consoleLogger.push(
               `Skipped unprofitable ${newDirection} order`,
-              `Price: ${newOrderPrice}, Potential Profit: ${(potentialProfit * 100).toFixed(2)}%`,
+              `Price: ${newOrderPrice}, Potential Profit: ${(potentialProfit * 100).toFixed(2)}%`
             );
+          }
           }
         } catch (error: unknown) {
           const errorMessage = error instanceof Error ? error.message : String(error);
@@ -332,11 +335,11 @@ export const gridTrading = async (
   candlesticks: Candlesticks,
   processOptions: ConfigOptions,
   exchangeOptions: ExchangeOptions,
-  symbolOptions: SymbolOptions,
+  symbolOptions: SymbolOptions
 ) => {
   const balancesKey = throttleKeyBalances(exchangeOptions.name);
   if (shouldFetchData(balancesKey)) {
-    exchangeOptions.balances = await getCurrentBalances(exchange);
+    exchangeOptions.balances = await assignCurrentBalances(exchange, exchangeOptions);
     markDataFetched(balancesKey);
   }
   const startTime = Date.now();
@@ -379,7 +382,9 @@ export const gridTrading = async (
   }
 
   const latestCandle =
-    candlesticks[toSymbolKey(symbol)][timeframe[0]][candlesticks[toSymbolKey(symbol)][timeframe[0]]?.length - 1];
+    candlesticks[toSymbolKey(symbol)][timeframe[0]][
+      candlesticks[toSymbolKey(symbol)][timeframe[0]]?.length - 1
+    ];
   const currentPrice = latestCandle.close;
 
   consoleLogger.push("Symbol", toSymbolKey(symbol));
@@ -411,7 +416,7 @@ export const gridTrading = async (
     filter,
     processOptions,
     exchangeOptions,
-    symbolOptions,
+    symbolOptions
   );
 
   consoleLogger.push(
@@ -423,7 +428,7 @@ export const gridTrading = async (
         side: order.isBuyer ? "buy" : "sell",
         qty: order.qty,
       };
-    }),
+    })
   );
   consoleLogger.push("Grid Status", summarizeGrid(openOrders, symbolOptions.grid));
 

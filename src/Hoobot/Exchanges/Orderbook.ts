@@ -1,7 +1,7 @@
 import { toSymbolKey } from "../Utilities/Args";
 import { Exchange, isBinance, isNonKYC, isDexTrade } from "./Exchange";
-import { NonKYCOrderbook, NonKYCResponse } from "./NonKYC/NonKYC";
 import { DexTradeSocketBookEntry, DexTradeSocketBookEvent } from "./DexTrade/DexTrade";
+import { NonKYCOrderbook, NonKYCResponse } from "./NonKYC/NonKYC";
 
 export interface Depth {
   [price: string]: number;
@@ -70,7 +70,7 @@ export const getOrderbook = async (exchange: Exchange, symbol: string): Promise<
 export const listenForOrderbooks = async (
   exchange: Exchange,
   symbol: string,
-  returnCallback: (symbol: string, orderbook: Orderbook) => void,
+  returnCallback: (symbol: string, orderbook: Orderbook) => void
 ) => {
   if (isBinance(exchange)) {
     exchange.websockets.depthCache(toSymbolKey(symbol), (symbol: any, depth: any) => {

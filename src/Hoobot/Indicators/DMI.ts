@@ -9,16 +9,16 @@ export interface DMI {
 }
 
 export const calculateDMI = (
-  candles: Candlestick[],
-  dmiLength: number = 14, // Length for calculating +DI and -DI
-  adxSmoothing: number = 14, // Period for smoothing the ADX
+  candles: Candlestick[], 
+  dmiLength: number = 14,     // Length for calculating +DI and -DI
+  adxSmoothing: number = 14  // Period for smoothing the ADX
 ): DMI => {
   if (!Array.isArray(candles) || candles?.length <= 0) {
     return {
       plusDI: [],
       minusDI: [],
-      adx: [],
-    };
+      adx: []
+    }
   }
   let plusDM: number[] = [];
   let minusDM: number[] = [];
@@ -39,7 +39,7 @@ export const calculateDMI = (
     const trValue = Math.max(
       currCandle.high - currCandle.low,
       Math.abs(currCandle.high - prevCandle.close),
-      Math.abs(currCandle.low - prevCandle.close),
+      Math.abs(currCandle.low - prevCandle.close)
     );
     tr.push(trValue);
 
@@ -76,7 +76,7 @@ export const calculateDMI = (
 
   // Calculate ADX (Average Directional Index)
   for (let i = dmiLength; i < plusDI.length; i++) {
-    const dx = (Math.abs(plusDI[i] - minusDI[i]) / (plusDI[i] + minusDI[i])) * 100;
+    const dx = Math.abs(plusDI[i] - minusDI[i]) / (plusDI[i] + minusDI[i]) * 100;
     adx.push(dx);
   }
 
@@ -93,18 +93,21 @@ export const calculateDMI = (
   };
 };
 
-export const logDMISignals = (consoleLogger: ConsoleLogger, dmi: DMI) => {
+export const logDMISignals = (
+  consoleLogger: ConsoleLogger,
+  dmi: DMI
+) => {
   if (!dmi?.plusDI?.length || !dmi?.minusDI?.length || !dmi?.adx?.length) return;
   const lastPlusDI = dmi.plusDI[dmi.plusDI.length - 1];
   const lastMinusDI = dmi.minusDI[dmi.minusDI.length - 1];
   const lastADX = dmi.adx[dmi.adx.length - 1];
   if (lastPlusDI == null || lastMinusDI == null || lastADX == null) return;
 
-  let signal = "Neutral";
+  let signal = 'Neutral';
   if (lastPlusDI > lastMinusDI) {
-    signal = "Bullish";
+    signal = 'Bullish';
   } else if (lastMinusDI > lastPlusDI) {
-    signal = "Bearish";
+    signal = 'Bearish';
   }
 
   consoleLogger.push("DMI", {
@@ -115,8 +118,11 @@ export const logDMISignals = (consoleLogger: ConsoleLogger, dmi: DMI) => {
   });
 };
 
-export const checkDMISignals = (dmi: DMI, symbolOptions: SymbolOptions): string => {
-  let check = "SKIP";
+export const checkDMISignals = (
+  dmi: DMI,
+  symbolOptions: SymbolOptions
+): string => {
+  let check = 'SKIP';
   if (symbolOptions.indicators !== undefined) {
     if (symbolOptions.indicators.dmi && symbolOptions.indicators.dmi.enabled) {
       if (!dmi?.plusDI?.length || !dmi?.minusDI?.length || !dmi?.adx?.length) {

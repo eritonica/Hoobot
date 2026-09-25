@@ -8,18 +8,13 @@ export default {
     .setName("trades")
     .setDescription("Replis with last 10 trades on symbol.")
     .addStringOption((option) =>
-      option.setName("exchange").setDescription("The name of exchange to check").setRequired(true),
+      option.setName("exchange").setDescription("The name of exchange to check").setRequired(true)
     )
     .addStringOption((option) => option.setName("symbol").setDescription("The symbol to check").setRequired(true)),
   execute: async (
-    interaction: {
-      options: any;
-      deferReply: () => Promise<unknown>;
-      editReply: (arg0: string) => Promise<unknown>;
-      reply: (arg0: string) => any;
-    },
+    interaction: { options: any; deferReply: () => Promise<unknown>; editReply: (arg0: string) => Promise<unknown>; reply: (arg0: string) => any },
     exchanges: Exchange[],
-    options: ConfigOptions,
+    options: ConfigOptions
   ) => {
     await interaction.deferReply();
     const exchangeName = interaction.options.getString("exchange");

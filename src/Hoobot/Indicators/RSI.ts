@@ -31,10 +31,10 @@ export const calculateRSI = (
   length: number = 9,
   smoothingType: string = "SMA",
   smoothing: number = 1,
-  source: string = "close",
+  source: string = "close"
 ): number[] => {
   if (!Array.isArray(candles) || candles?.length <= 0) {
-    return [];
+    return []
   }
   if (length == 0) {
     length = 9;
@@ -115,7 +115,9 @@ export const checkRSISignals = (rsi: number[] | undefined, symbolOptions: Symbol
         return "HOLD";
       }
       check = "HOLD";
-      const rsiValues = rsi.slice(-symbolOptions.indicators.rsi?.history);
+      const histLen = Math.max(1, symbolOptions.indicators.rsi?.history ?? 1);
+      const rsiValues = rsi.slice(-histLen);
+      const currentRsi = rsiValues[rsiValues.length - 1];
       const overboughtTreshold =
         symbolOptions.indicators.rsi.tresholds.overbought !== undefined
           ? symbolOptions.indicators.rsi.tresholds.overbought
@@ -124,21 +126,10 @@ export const checkRSISignals = (rsi: number[] | undefined, symbolOptions: Symbol
         symbolOptions.indicators.rsi.tresholds.oversold !== undefined
           ? symbolOptions.indicators.rsi.tresholds.oversold
           : 30;
-      for (let i = rsiValues.length - 1; i >= 0; i--) {
-        const prevRsi = rsiValues[i];
-        if (prevRsi > overboughtTreshold) {
-          check = "SELL";
-          break;
-        }
-      }
-      if (check === "HOLD") {
-        for (let i = rsiValues.length - 1; i >= 0; i--) {
-          const prevRsi = rsiValues[i];
-          if (prevRsi < oversoldTreshold) {
-            check = "BUY";
-            break;
-          }
-        }
+      if (currentRsi > overboughtTreshold) {
+        check = "SELL";
+      } else if (currentRsi < oversoldTreshold) {
+        check = "BUY";
       }
     }
   }

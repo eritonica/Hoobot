@@ -13,7 +13,9 @@ export interface RenkoBrick {
 }
 
 export const calculateBrickSize = (atr: number[], symbolOptions: SymbolOptions) => {
-  const averageAtr = atr.filter((atr) => atr !== undefined).reduce((sum, atr) => sum + atr, 0) / atr.length;
+  const valid = atr.filter((v) => v !== undefined && Number.isFinite(v) && v > 0);
+  if (valid.length === 0) return 0;
+  const averageAtr = valid.reduce((sum, v) => sum + v, 0) / valid.length;
   if (symbolOptions.indicators !== undefined) {
     if (symbolOptions.indicators.renko !== undefined) {
       if (symbolOptions.indicators.renko.enabled) {
@@ -91,7 +93,7 @@ export const calculateRenko = (candlesticks: Candlestick[], brickSize: number): 
 export const logRenkoSignals = (
   consoleLogger: ConsoleLogger,
   renkoData: RenkoBrick[],
-  symbolOptions: SymbolOptions,
+  symbolOptions: SymbolOptions
 ) => {
   const lastBrick = renkoData[renkoData.length - 1];
   const prevBrick = renkoData[renkoData.length - 2];

@@ -6,6 +6,7 @@ import {
   calculatePNLPercentageForShort,
   getTradeHistory,
 } from "../../Hoobot/Exchanges/Trades";
+import { roundTripPnlAfterFees } from "../../Hoobot/Trading/tradeGates";
 import { Exchange, getExchangeByName } from "../../Hoobot/Exchanges/Exchange";
 
 export default {
@@ -54,36 +55,20 @@ export default {
           let olderTrade: Trade = tradesInDuration[i - 1];
           let lastTrade: Trade = tradesInDuration[i];
           let lastPNL: number = 0;
-          let commission: number = 0;
-          const olderPrice = Number.isFinite(parseFloat(olderTrade.price)) ? parseFloat(olderTrade.price) : 0;
-          const lastPrice = Number.isFinite(parseFloat(lastTrade.price)) ? parseFloat(lastTrade.price) : 0;
-          
-          if (olderPrice > 0 && lastPrice > 0) {
-            if (olderTrade.isBuyer) {
-              lastPNL = calculatePNLPercentageForLong(olderPrice, lastPrice);
-            } else if (!olderTrade.isBuyer) {
-              lastPNL = calculatePNLPercentageForShort(olderPrice, lastPrice);
-            }
+          if (olderTrade.isBuyer) {
+            lastPNL = calculatePNLPercentageForLong(parseFloat(olderTrade.price), parseFloat(lastTrade.price));
+          } else if (!olderTrade.isBuyer) {
+            lastPNL = calculatePNLPercentageForShort(parseFloat(olderTrade.price), parseFloat(lastTrade.price));
           }
-          
-          const olderCommission = Number.isFinite(parseFloat(olderTrade.commission)) ? parseFloat(olderTrade.commission) : 0;
-          const lastCommission = Number.isFinite(parseFloat(lastTrade.commission)) ? parseFloat(lastTrade.commission) : 0;
-          
-          if (olderCommission > 0) {
-            if (olderTrade.commissionAsset === "BNB") {
-              commission += 0.075;
-            } else {
-              commission += 0.1;
-            }
-          }
-          if (lastCommission > 0) {
-            if (lastTrade.commissionAsset === "BNB") {
-              commission += 0.075;
-            } else {
-              commission += 0.1;
-            }
-          }
-          pnlPercentage += lastPNL - commission;
+          const symbolOptions = options.exchanges
+            ?.find((e) => e.name === exchangeName)
+            ?.symbols?.find((s) => s.name === symbol || s.name.replace("/", "") === symbol.replace("/", ""));
+          pnlPercentage += roundTripPnlAfterFees(
+            lastPNL,
+            olderTrade,
+            lastTrade,
+            symbolOptions?.tradeFeePercentage
+          );
         }
         const finalPnl = Number.isFinite(pnlPercentage) ? pnlPercentage.toFixed(2) : "0.00";
         let msg = "```";

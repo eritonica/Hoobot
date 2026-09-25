@@ -28,7 +28,7 @@ export function isFullOrderFill(status: string, executedQty?: string | number, o
 export function shouldClearTakeProfitAfterOrder(
   status: string,
   executedQty?: string | number,
-  origQty?: string | number,
+  origQty?: string | number
 ): boolean {
   return isFullOrderFill(status, executedQty, origQty);
 }

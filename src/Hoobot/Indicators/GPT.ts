@@ -1,26 +1,28 @@
-import OpenAI from "openai";
-import { Candlesticks } from "../Exchanges/Candlesticks";
-import { ConsoleLogger } from "../Utilities/ConsoleLogger";
-import { Indicators } from "../Modes/Algorithmic";
-import { ConfigOptions, SymbolOptions, toSymbolKey } from "../Utilities/Args";
+import OpenAI from 'openai';
+import { Candlesticks } from '../Exchanges/Candlesticks';
+import { ConsoleLogger } from '../Utilities/ConsoleLogger';
+import { Indicators } from '../Modes/Algorithmic';
+import { ConfigOptions, SymbolOptions, toSymbolKey } from '../Utilities/Args';
 
 export const checkGPTSignals = async (
-  consoleLogger: ConsoleLogger,
+  consoleLogger: ConsoleLogger, 
   symbol: string,
-  candlesticks: Candlesticks,
-  indicators: Indicators,
-  symbolOptions: SymbolOptions,
+  candlesticks: Candlesticks, 
+  indicators: Indicators, 
+  symbolOptions: SymbolOptions
 ) => {
   symbol = toSymbolKey(symbol);
   let check = "SKIP";
   if (symbolOptions.indicators !== undefined) {
     if (symbolOptions.indicators.OpenAI !== undefined && symbolOptions.indicators.OpenAI?.enabled) {
-      check = "HOLD";
-      const slice = symbolOptions.indicators.OpenAI.history;
-      let message =
-        "I give you this trade data, I want you to decide from them if I should BUY, SELL or HOLD.  Data in arrays are oldest to newest order. Please reply only with one word HOLD, BUY or SELL!\n\n";
+      check = 'HOLD';
+      const slice = symbolOptions.indicators.OpenAI.history; 
+      let message = "I give you this trade data, I want you to decide from them if I should BUY, SELL or HOLD.  Data in arrays are oldest to newest order. Please reply only with one word HOLD, BUY or SELL!\n\n";
       message += `Traded symbol is: ${symbol}\n`;
-      const timeframes = Object.keys(indicators[symbol]);
+      const timeframes =
+        symbolOptions.timeframes?.length > 0
+          ? symbolOptions.timeframes
+          : Object.keys(candlesticks[symbol] ?? {});
       message += `Candle timeframes: ${JSON.stringify(timeframes, null, 2)}\n`;
       for (let i = 0; i < timeframes.length; i++) {
         const latestCandles = candlesticks[symbol][timeframes[i]].slice(-slice);
@@ -71,18 +73,18 @@ export const checkGPTSignals = async (
         }
       }
       const openai = new OpenAI({
-        apiKey: symbolOptions.indicators.OpenAI.key,
+        apiKey: symbolOptions.indicators.OpenAI.key, 
       });
       const chatCompletion = await openai.chat.completions.create({
-        messages: [{ role: "user", content: message }],
+        messages: [{ role: 'user', content: message }],
         model: symbolOptions.indicators.OpenAI.model,
       });
       for (let i = 0; i < chatCompletion.choices.length; i++) {
-        if (chatCompletion.choices[i].message.role === "assistant") {
-          if (chatCompletion.choices[i].finish_reason === "stop") {
+        if(chatCompletion.choices[i].message.role === "assistant") {
+          if(chatCompletion.choices[i].finish_reason === "stop") {
             const content = chatCompletion.choices[i].message.content;
             if (content === "HOLD" || content === "SELL" || content === "BUY") {
-              check = content;
+              check = content
               break;
             }
           }
@@ -92,4 +94,5 @@ export const checkGPTSignals = async (
     }
   }
   return check;
-};
+}
+

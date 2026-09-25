@@ -130,3 +130,70 @@ export function readGridVariantCacheFile(
     return null;
   }
 }
+
+type SymbolPatch = Record<string, unknown>;
+
+const isPlainObject = (value: unknown): value is Record<string, unknown> =>
+  value != null && typeof value === "object" && !Array.isArray(value);
+
+const variantSymbols = (variant: unknown): Array<Record<string, unknown>> => {
+  if (!isPlainObject(variant) || !Array.isArray(variant.exchanges)) return [];
+  const out: Array<Record<string, unknown>> = [];
+  for (const ex of variant.exchanges) {
+    if (!isPlainObject(ex) || !Array.isArray(ex.symbols)) continue;
+    for (const sym of ex.symbols) {
+      if (isPlainObject(sym)) out.push(sym);
+    }
+  }
+  return out;
+};
+
+/** Symbol patch (without `name`) from a grid variant: exchanges[].symbols[]. With `symbolName` picks that symbol, else the first. */
+export function extractSymbolPatchFromGridVariant(variant: unknown, symbolName?: string): SymbolPatch | undefined {
+  const symbols = variantSymbols(variant);
+  const normalize = (s: unknown): string => String(s ?? "").replace("/", "");
+  const target =
+    symbolName === undefined ? symbols[0] : symbols.find((s) => normalize(s.name) === normalize(symbolName));
+  if (!target) return undefined;
+  const { name: _name, ...patch } = target;
+  return Object.keys(patch).length > 0 ? patch : undefined;
+}
+
+const unflattenLeafValues = (flat: Record<string, unknown>): unknown => {
+  const root: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(flat)) {
+    if (key.startsWith("baseline.")) continue;
+    const parts = key.replace(/\[(\d+)\]/g, ".$1").split(".");
+    let node: any = root;
+    for (let i = 0; i < parts.length; i++) {
+      const part = parts[i];
+      const isLast = i === parts.length - 1;
+      if (isLast) {
+        node[part] = value;
+        break;
+      }
+      if (node[part] == null || typeof node[part] !== "object") {
+        node[part] = /^\d+$/.test(parts[i + 1]) ? [] : {};
+      }
+      node = node[part];
+    }
+  }
+  return root;
+};
+
+/** Decide which variant can be written to settings: the variant itself, or one rebuilt from flat leaf values. */
+export function resolveSummaryApplyVariant(
+  variant: unknown,
+  flatValues?: Record<string, unknown>
+): { canApply: boolean; applyVariant?: unknown } {
+  if (extractSymbolPatchFromGridVariant(variant) !== undefined) {
+    return { canApply: true, applyVariant: variant };
+  }
+  if (flatValues && Object.keys(flatValues).length > 0) {
+    const rebuilt = unflattenLeafValues(flatValues);
+    if (extractSymbolPatchFromGridVariant(rebuilt) !== undefined) {
+      return { canApply: true, applyVariant: rebuilt };
+    }
+  }
+  return { canApply: false };
+}

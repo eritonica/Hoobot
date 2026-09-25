@@ -11,7 +11,8 @@ try {
   // ignore
 }
 
-const shouldLog = (level: LogLevel): boolean => LEVEL_ORDER.indexOf(level) >= LEVEL_ORDER.indexOf(minLevel);
+const shouldLog = (level: LogLevel): boolean =>
+  LEVEL_ORDER.indexOf(level) >= LEVEL_ORDER.indexOf(minLevel);
 
 export const setMinLogLevel = (level: LogLevel): void => {
   minLevel = level;

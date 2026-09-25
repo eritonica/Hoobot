@@ -15,18 +15,13 @@ export default {
     .setName("upnl")
     .setDescription("Calculates current possible PNL% for next trade.")
     .addStringOption((option) =>
-      option.setName("exchange").setDescription("The name of exchange to check").setRequired(true),
+      option.setName("exchange").setDescription("The name of exchange to check").setRequired(true)
     )
     .addStringOption((option) => option.setName("symbol").setDescription("The symbol to check").setRequired(true)),
   execute: async (
-    interaction: {
-      options: any;
-      deferReply: () => Promise<unknown>;
-      editReply: (arg0: string | { content: string }) => Promise<unknown>;
-      reply: (arg0: string) => any;
-    },
+    interaction: { options: any; deferReply: () => Promise<unknown>; editReply: (arg0: string | { content: string }) => Promise<unknown>; reply: (arg0: string) => any },
     exchanges: Exchange[],
-    options: ConfigOptions,
+    options: ConfigOptions
   ) => {
     await interaction.deferReply();
     const exchangeName = interaction.options.getString("exchange");
@@ -48,12 +43,7 @@ export default {
           const exchangeOption = getExchangeOption(exchangeByName, options);
           const symbolKey = toSymbolKey(symbol);
           const orderBook: Orderbook | undefined = exchangeOption?.orderbooks?.[symbolKey];
-          if (
-            !orderBook?.bids ||
-            !orderBook?.asks ||
-            Object.keys(orderBook.bids).length === 0 ||
-            Object.keys(orderBook.asks).length === 0
-          ) {
+          if (!orderBook?.bids || !orderBook?.asks || Object.keys(orderBook.bids).length === 0 || Object.keys(orderBook.asks).length === 0) {
             await interaction.editReply("Order book not available for this symbol. Wait for data to load.");
             return;
           }
@@ -63,7 +53,7 @@ export default {
             const pnl = calculateUnrealizedPNLPercentageForLong(
               parseFloat(lastTrade.qty),
               parseFloat(lastTrade.price),
-              currentHighestBidPrice,
+              currentHighestBidPrice
             );
             let msg = "```";
             msg += `Symbol ${lastTrade.symbol}.\r\n`;
@@ -78,7 +68,7 @@ export default {
             const pnl = calculateUnrealizedPNLPercentageForShort(
               parseFloat(lastTrade.qty),
               parseFloat(lastTrade.price),
-              currentLowestAskPrice,
+              currentLowestAskPrice
             );
             let msg = "```";
             msg += `Symbol ${lastTrade.symbol}.\r\n`;

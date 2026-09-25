@@ -19,7 +19,7 @@ export const simulatePeriodic = async (
   exchangeOptions: ExchangeOptions,
   symbolOptions: SymbolOptions,
   balances: Balances,
-  filter: Filter,
+  filter: Filter
 ): Promise<boolean> => {
   if (symbolOptions.enabled === false) return false;
   
@@ -66,7 +66,7 @@ export const simulatePeriodic = async (
       symbolOptions,
       latestCandle.time,
       filter,
-      logger,
+      logger
     );
   } else {
     await simulateSell(
@@ -80,7 +80,7 @@ export const simulatePeriodic = async (
       symbolOptions,
       latestCandle.time,
       filter,
-      logger,
+      logger
     );
   }
   return true;
@@ -93,7 +93,7 @@ export const periodic = async (
   symbol: string,
   processOptions: ConfigOptions,
   exchangeOptions: ExchangeOptions,
-  symbolOptions: SymbolOptions,
+  symbolOptions: SymbolOptions
 ) => {
   const currentTime = Date.now();
   const lastTradeTime = symbolOptions.periodicTime || 0;
@@ -116,7 +116,7 @@ export const periodic = async (
         processOptions,
         exchangeOptions,
         symbolOptions,
-        symbolOptions.periodicQuantity,
+        symbolOptions.periodicQuantity
       );
     } else {
       consoleLogger.push("Performing periodic SELL", `Selling ${symbolOptions.periodicQuantity} of ${symbol}`);
@@ -131,7 +131,7 @@ export const periodic = async (
         processOptions,
         exchangeOptions,
         symbolOptions,
-        symbolOptions.periodicQuantity,
+        symbolOptions.periodicQuantity
       );
     }
     consoleLogger.print();

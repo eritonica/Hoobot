@@ -34,7 +34,11 @@ function wilderSmoothing(values: number[], period: number): number[] {
   return smoothed;
 }
 
-export const calculateADX = (candles: Candlestick[], diLength = 14, adxSmoothing = 14): adx => {
+export const calculateADX = (
+  candles: Candlestick[],
+  diLength = 14,
+  adxSmoothing = 14
+): adx => {
   if (diLength == 0) {
     diLength = 14;
   }
@@ -62,7 +66,7 @@ export const calculateADX = (candles: Candlestick[], diLength = 14, adxSmoothing
     const currentTR = Math.max(
       candles[i].high - candles[i].low,
       Math.abs(candles[i].high - candles[i - 1].close),
-      Math.abs(candles[i].low - candles[i - 1].close),
+      Math.abs(candles[i].low - candles[i - 1].close)
     );
     tr.push(currentTR);
 
@@ -167,23 +171,33 @@ export const checkADXSignals = (adx: adx | undefined, symbolOptions: SymbolOptio
   if (!symbolOptions.indicators?.adx?.enabled) {
     return "SKIP";
   }
-  if (!adx || adx.adx.length < 1 || adx.plusDI.length < 1 || adx.minusDI.length < 1) {
+  if (
+    !adx ||
+    adx.adx.length < 2 ||
+    adx.plusDI.length < 2 ||
+    adx.minusDI.length < 2
+  ) {
     return "HOLD";
   }
 
   const lastADX = adx.adx[adx.adx.length - 1];
   const lastPlusDI = adx.plusDI[adx.plusDI.length - 1];
   const lastMinusDI = adx.minusDI[adx.minusDI.length - 1];
+  const prevPlusDI = adx.plusDI[adx.plusDI.length - 2];
+  const prevMinusDI = adx.minusDI[adx.minusDI.length - 2];
 
   if (symbolOptions.indicators.adx.weight === undefined) {
     symbolOptions.indicators.adx.weight = 1;
   }
 
+  const isBullishCrossover = lastPlusDI > lastMinusDI && prevPlusDI <= prevMinusDI;
+  const isBearishCrossover = lastMinusDI > lastPlusDI && prevMinusDI <= prevPlusDI;
+
   if (lastADX > 20) {
-    if (lastPlusDI > lastMinusDI) {
+    if (isBullishCrossover) {
       return "BUY";
     }
-    if (lastMinusDI > lastPlusDI) {
+    if (isBearishCrossover) {
       return "SELL";
     }
   }
