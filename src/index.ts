@@ -320,6 +320,9 @@ const runExchange = async (exchange: Exchange, discord: any, exchangeOptions: Ex
     }
   } else if (exchangeOptions.mode === "marketmaking") {
     console.log(`Start running exchange ${exchangeOptions.name} on market making mode.`);
+    if (exchangeOptions.orderbooks === undefined) {
+      exchangeOptions.orderbooks = {};
+    }
     if (Array.isArray(exchangeOptions.symbols)) {
       for (const symbolOptions of exchangeOptions.symbols) {
         if (symbolOptions.enabled === false) continue;
