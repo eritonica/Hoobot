@@ -1,6 +1,6 @@
 import { Client } from "discord.js";
 import { ConsoleLogger } from "../Utilities/ConsoleLogger";
-import { ConfigOptions, ExchangeOptions, SymbolOptions, toSymbolKey } from "../Utilities/Args";
+import { CandlestickInterval, ConfigOptions, ExchangeOptions, SymbolOptions, toSymbolKey } from "../Utilities/Args";
 import { Exchange } from "../Exchanges/Exchange";
 import { Orderbook } from "../Exchanges/Orderbook";
 import { Order, getOpenOrders, cancelOrder } from "../Exchanges/Orders";
@@ -133,19 +133,28 @@ export const getOpenOrdersMidPrice = (openOrders: Order[]): number | null => {
 
 const LAST_CANDLE_TIMEOUT_MS = 15000;
 
+/** Wider intervals reach further back, so illiquid pairs without recent 1m candles still resolve. */
+const LAST_CANDLE_INTERVALS: CandlestickInterval[] = ["1m", "1h", "1d"];
+
 const getLastCandleMidPrice = async (exchange: Exchange, symbol: string): Promise<number | null> => {
-  try {
-    const candles = await Promise.race([
-      getLastCandlesticks(exchange, symbol, "1m", 5),
-      delay(LAST_CANDLE_TIMEOUT_MS).then(() => [] as Candlestick[]),
-    ]);
-    for (let i = candles.length - 1; i >= 0; i--) {
-      const close = Number(candles[i]?.close);
-      if (Number.isFinite(close) && close > 0) return close;
+  for (const interval of LAST_CANDLE_INTERVALS) {
+    try {
+      const candles = await Promise.race([
+        getLastCandlesticks(exchange, symbol, interval, 5),
+        delay(LAST_CANDLE_TIMEOUT_MS).then(() => [] as Candlestick[]),
+      ]);
+      // Exchanges differ in ordering (DexTrade returns newest first), so pick by time.
+      let latest: Candlestick | null = null;
+      for (const candle of candles) {
+        const close = Number(candle?.close);
+        if (!Number.isFinite(close) || close <= 0) continue;
+        if (latest == null || Number(candle.time) > Number(latest.time)) latest = candle;
+      }
+      if (latest != null) return Number(latest.close);
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      logToFile("./logs/mm-error.log", `Last candle fetch failed ${symbol} ${interval}: ${errorMessage}`);
     }
-  } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    logToFile("./logs/mm-error.log", `Last candle fetch failed ${symbol}: ${errorMessage}`);
   }
   return null;
 };
