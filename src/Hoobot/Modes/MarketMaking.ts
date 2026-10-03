@@ -8,6 +8,7 @@ import { placeBuyOrder, placeSellOrder, Trade } from "../Exchanges/Trades";
 import { getCurrentBalances } from "../Exchanges/Balances";
 import { logToFile } from "../Utilities/LogToFile";
 import { symbolFilters } from "../symbolFiltersStore";
+import { Candlestick, getLastCandlesticks } from "../Exchanges/Candlesticks";
 
 type MmSide = "buy" | "sell";
 type MmSlotKey = string;
@@ -115,17 +116,60 @@ export const getBootFixedMidPrice = (orderbook: Orderbook, depthLevels = 8): num
   return Number.isFinite(midPrice) && midPrice > 0 ? midPrice : null;
 };
 
-const resolveStaticMidPrice = (
+/** Mid between the best own buy and best own sell order. Requires both sides. */
+export const getOpenOrdersMidPrice = (openOrders: Order[]): number | null => {
+  let bestBuy = 0;
+  let bestSell = Infinity;
+  for (const order of openOrders) {
+    const price = Number(order.price);
+    if (!Number.isFinite(price) || price <= 0) continue;
+    if (order.isBuyer) bestBuy = Math.max(bestBuy, price);
+    else bestSell = Math.min(bestSell, price);
+  }
+  if (bestBuy <= 0 || !Number.isFinite(bestSell)) return null;
+  const midPrice = (bestBuy + bestSell) / 2;
+  return Number.isFinite(midPrice) && midPrice > 0 ? midPrice : null;
+};
+
+const LAST_CANDLE_TIMEOUT_MS = 15000;
+
+const getLastCandleMidPrice = async (exchange: Exchange, symbol: string): Promise<number | null> => {
+  try {
+    const candles = await Promise.race([
+      getLastCandlesticks(exchange, symbol, "1m", 5),
+      delay(LAST_CANDLE_TIMEOUT_MS).then(() => [] as Candlestick[]),
+    ]);
+    for (let i = candles.length - 1; i >= 0; i--) {
+      const close = Number(candles[i]?.close);
+      if (Number.isFinite(close) && close > 0) return close;
+    }
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    logToFile("./logs/mm-error.log", `Last candle fetch failed ${symbol}: ${errorMessage}`);
+  }
+  return null;
+};
+
+const resolveStaticMidPrice = async (
+  exchange: Exchange,
+  symbol: string,
   state: MmState,
   opts: NonNullable<SymbolOptions["marketMaking"]>,
   orderbook: Orderbook,
-): number | null => {
+  openOrders: Order[],
+): Promise<{ price: number; source: string } | null> => {
   const configured = getEffectiveFixedMidPrice(opts);
-  if (configured != null) return configured;
+  if (configured != null) return { price: configured, source: "config" };
   if (state.fixedMidPrice != null && Number.isFinite(state.fixedMidPrice) && state.fixedMidPrice > 0) {
-    return state.fixedMidPrice;
+    return { price: state.fixedMidPrice, source: "state" };
   }
-  return getBootFixedMidPrice(orderbook);
+  const fromOrderbook = getBootFixedMidPrice(orderbook);
+  if (fromOrderbook != null) return { price: fromOrderbook, source: "orderbook" };
+  const fromOpenOrders = getOpenOrdersMidPrice(openOrders);
+  if (fromOpenOrders != null) return { price: fromOpenOrders, source: "open orders" };
+  const fromCandle = await getLastCandleMidPrice(exchange, symbol);
+  if (fromCandle != null) return { price: fromCandle, source: "last candle" };
+  return null;
 };
 
 const roundToStep = (value: number, step: number, direction: "down" | "up" | "nearest" = "nearest"): number => {
@@ -708,6 +752,7 @@ export const initMarketMaking = async (
   consoleLogger.push(`MM ${symbol}`, "Cancelling all existing open orders...");
   consoleLogger.print();
   state.openOrders = await getOpenOrders(exchange, symbol);
+  const preCancelOpenOrders = state.openOrders;
   for (const order of state.openOrders) {
     try {
       await cancelOrder(exchange, symbol, order.orderId);
@@ -727,12 +772,14 @@ export const initMarketMaking = async (
     consoleLogger.print();
     return;
   }
-  const fixedMidPrice = resolveStaticMidPrice(state, opts, orderbook);
-  if (!fixedMidPrice) {
-    consoleLogger.push(`MM ${symbol}`, "❌ Could not determine fixed mid price. Aborting init.");
+  const resolvedMid = await resolveStaticMidPrice(exchange, symbol, state, opts, orderbook, preCancelOpenOrders);
+  if (!resolvedMid) {
+    consoleLogger.push(`MM ${symbol}`, "❌ Could not determine fixed mid price (config, orderbook, open orders, last candle). Aborting init.");
     consoleLogger.print();
     return;
   }
+  const fixedMidPrice = resolvedMid.price;
+  consoleLogger.push(`MM ${symbol}`, `Mid price ${fixedMidPrice} resolved from ${resolvedMid.source}`);
   state.fixedMidPrice = fixedMidPrice;
 
   const filter = symbolFilters[symbolKey];
