@@ -263,11 +263,10 @@ const buildStaticGridLevels = (
 
   const validBids = Object.keys(orderbook.bids).map(Number).filter(n => Number.isFinite(n) && n > 0);
   const validAsks = Object.keys(orderbook.asks).map(Number).filter(n => Number.isFinite(n) && n > 0);
-  
-  if (validBids.length === 0 || validAsks.length === 0) return [];
 
-  const bestBid = Math.max(...validBids);
-  const bestAsk = Math.min(...validAsks);
+  // An empty side (e.g. illiquid pair with no asks) means no bound on that side; the checks below skip it when 0.
+  const bestBid = validBids.length > 0 ? Math.max(...validBids) : 0;
+  const bestAsk = validAsks.length > 0 ? Math.min(...validAsks) : 0;
 
   const spread = Math.max(0, spreadPercent / 100);
   const gridSpacing = Math.max(0.000001, gridSpacingPercent / 100);
