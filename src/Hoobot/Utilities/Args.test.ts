@@ -133,6 +133,51 @@ describe("validateOptions", () => {
     expect(warn.mock.calls.some((c) => String(c[0]).includes("ignored in simulation"))).toBe(true);
     warn.mockRestore();
   });
+
+  it.each(["algorithmic", "grid"])("defaults missing timeframes for %s mode", (mode) => {
+    const warn = jest.spyOn(console, "warn").mockImplementation(() => {});
+    const result = validateOptions({
+      running: false,
+      debug: false,
+      startTime: "",
+      license: "",
+      simulate: false,
+      discord: {},
+      exchanges: [
+        {
+          name: "binance",
+          mode,
+          symbols: [{ name: "BTC/USDT" }, { name: "ETH/USDT", timeframes: [] }],
+        } as unknown as ConfigOptions["exchanges"][0],
+      ],
+    });
+    // Algorithmic may append scout/confirm timeframes after the default.
+    expect(result.exchanges[0].symbols[0].timeframes[0]).toBe("5m");
+    expect(result.exchanges[0].symbols[1].timeframes[0]).toBe("5m");
+    warn.mockRestore();
+  });
+
+  it("accepts singular timeframe key as timeframes", () => {
+    const warn = jest.spyOn(console, "warn").mockImplementation(() => {});
+    const result = validateOptions({
+      running: false,
+      debug: false,
+      startTime: "",
+      license: "",
+      simulate: false,
+      discord: {},
+      exchanges: [
+        {
+          name: "binance",
+          mode: "grid",
+          symbols: [{ name: "BTC/USDT", timeframe: ["15m"] }],
+        } as unknown as ConfigOptions["exchanges"][0],
+      ],
+    });
+    expect(result.exchanges[0].symbols[0].timeframes).toEqual(["15m"]);
+    expect((result.exchanges[0].symbols[0] as unknown as { timeframe?: unknown }).timeframe).toBeUndefined();
+    warn.mockRestore();
+  });
 });
 
 describe("getSecondsFromInterval", () => {

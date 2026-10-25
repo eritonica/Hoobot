@@ -667,6 +667,9 @@ export function sanitizeOptionsDocument(options: ConfigOptions): ConfigOptions {
   return out;
 }
 
+/** Same fallback simulation uses (simulationTimeframesForSymbol). */
+const DEFAULT_SYMBOL_TIMEFRAME: CandlestickInterval = "5m";
+
 /** Validates options after load. Logs warnings and normalizes structure to avoid runtime errors. */
 export const validateOptions = (options: ConfigOptions): ConfigOptions => {
   if (!options || typeof options !== "object") {
@@ -680,6 +683,26 @@ export const validateOptions = (options: ConfigOptions): ConfigOptions => {
     if (!ex || typeof ex !== "object") continue;
     if (!ex.name) ex.name = "";
     if (!ex.mode) ex.mode = "algorithmic";
+    // Algorithmic and grid subscribe to candlesticks; without timeframes listenForCandlesticks throws.
+    if ((ex.mode === "algorithmic" || ex.mode === "grid") && Array.isArray(ex.symbols)) {
+      for (const sym of ex.symbols) {
+        if (!sym || typeof sym !== "object") continue;
+        // Common hand-edit typo: singular `timeframe` (string or array) instead of `timeframes`.
+        const legacy = (sym as unknown as { timeframe?: unknown }).timeframe;
+        if (!Array.isArray(sym.timeframes) && legacy != null) {
+          console.warn(`[Hoobot] ${sym.name}: "timeframe" is not a valid key — using it as "timeframes".`);
+          sym.timeframes = (Array.isArray(legacy) ? legacy : [legacy]) as CandlestickInterval[];
+          delete (sym as unknown as { timeframe?: unknown }).timeframe;
+        }
+        const tfs = Array.isArray(sym.timeframes) ? sym.timeframes.filter(Boolean) : [];
+        if (tfs.length === 0) {
+          console.warn(`[Hoobot] ${sym.name}: timeframes missing or empty — defaulting to ["${DEFAULT_SYMBOL_TIMEFRAME}"].`);
+          sym.timeframes = [DEFAULT_SYMBOL_TIMEFRAME];
+        } else if (tfs.length !== sym.timeframes.length) {
+          sym.timeframes = tfs;
+        }
+      }
+    }
     if (
       ex.mode === "algorithmic" ||
       ex.mode === "hilow" ||
