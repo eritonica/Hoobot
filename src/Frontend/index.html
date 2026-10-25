@@ -2999,6 +2999,7 @@
           if (symbolDomHas($symbol, ".extreme-sell-profit-quote")) patch.extreme = dom.extreme;
           if (symbolDomHas($symbol, ".adaptive-enabled")) patch.algorithmicAdaptive = dom.algorithmicAdaptive;
           if (symbolDomHas($symbol, ".forced-exit-enabled")) patch.forcedExit = dom.forcedExit;
+          if (symbolDomHas($symbol, ".ignore-pnl-after-days")) patch.ignorePnlAfterDays = dom.ignorePnlAfterDays;
           if (symbolDomHas($symbol, ".indicators-preset")) patch.indicatorsPreset = dom.indicatorsPreset;
           if (symbolDomHas($symbol, ".sma-enabled")) patch.indicators = dom.indicators;
           var merged = deepMergePlainObject(stored, patch);
@@ -4010,6 +4011,15 @@
                                         symbolData.forcedExit?.maxHours ?? ""
                                       }">
                                       <small class="text-muted">STALE_EXIT: tunnit avoimessa positiossa → sulje vaikka miinuksella. 0 tai tyhjä = pois. Sallittu 0–168 h (7 vrk).</small>
+                                    </td>
+                                  </tr>
+                                  <tr>
+                                    <td><label class="form-label">Ignore PNL after days</label></td>
+                                    <td>
+                                      <input type="number" min="0" step="1" class="form-control ignore-pnl-after-days" placeholder="esim. 30" value="${
+                                        symbolData.ignorePnlAfterDays ?? ""
+                                      }">
+                                      <small class="text-muted">Kun edellisestä kaupasta on kulunut näin monta vrk, PNL (profit minimum / miinuskauppaesto) ei estä seuraavaa kauppaa — indikaattorien signaali riittää. 0 tai tyhjä = pois.</small>
                                     </td>
                                   </tr>
                                 </tbody>
@@ -5141,6 +5151,15 @@
                                       <small class="text-muted">STALE_EXIT: tunnit avoimessa positiossa → sulje vaikka miinuksella. 0 tai tyhjä = pois. Sallittu 0–168 h (7 vrk).</small>
                                     </td>
                                   </tr>
+                                  <tr>
+                                    <td><label class="form-label">Ignore PNL after days</label></td>
+                                    <td>
+                                      <input type="number" min="0" step="1" class="form-control ignore-pnl-after-days" placeholder="esim. 30" value="${
+                                        symbolData.ignorePnlAfterDays ?? ""
+                                      }">
+                                      <small class="text-muted">Kun edellisestä kaupasta on kulunut näin monta vrk, PNL (profit minimum / miinuskauppaesto) ei estä seuraavaa kauppaa — indikaattorien signaali riittää. 0 tai tyhjä = pois.</small>
+                                    </td>
+                                  </tr>
                                 </tbody>
                               </table>
                             </div>
@@ -5602,6 +5621,7 @@
               feeAwareMinProfit: $symbol.find(".adaptive-fee-aware-min-profit").is(":checked"),
             },
             forcedExit: { enabled: $symbol.find(".forced-exit-enabled").is(":checked"), candles: parseInt($symbol.find(".forced-exit-candles").val(), 10) || undefined, change: parseFloat($symbol.find(".forced-exit-change").val()) || undefined, minProfit: parseFloat($symbol.find(".forced-exit-min-profit").val()) || undefined, maxHours: parseFloat($symbol.find(".forced-exit-max-hours").val()) || undefined },
+            ignorePnlAfterDays: parseFloat($symbol.find(".ignore-pnl-after-days").val()) || 0,
             indicators: {
               sma: { enabled: $symbol.find(".sma-enabled").is(":checked"), length: parseInt($symbol.find(".sma-length").val()) || 0, weight: parseFloat($symbol.find(".sma-weight").val()) || 0 },
               renko: { enabled: $symbol.find(".renko-enabled").is(":checked"), multiplier: parseInt($symbol.find(".renko-multiplier").val()) || 0, brickSize: parseInt($symbol.find(".renko-brick-size").val()) || 0, weight: parseFloat($symbol.find(".renko-weight").val()) || 0 },

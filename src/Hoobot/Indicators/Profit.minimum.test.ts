@@ -83,4 +83,28 @@ describe("profit.minimum thresholds", () => {
     const signals = await calculateProfitSignals("LONG", "SELL", lastBuy(), 0, -1.2, elevenHoursLater, s);
     expect(signals.check).toBe("HOLD");
   });
+
+  const DAY_MS = 24 * 60 * 60 * 1000;
+
+  it("ignorePnlAfterDays allows a red sell once the last trade is old enough", async () => {
+    const s = sym({ enabled: true, minimumSell: 3, minimumBuy: 2 });
+    s.ignorePnlAfterDays = 30;
+    const signals = await calculateProfitSignals("LONG", "SELL", lastBuy(), 0, -29, 1_000_000 + 30 * DAY_MS, s);
+    expect(signals.check).toBe("SELL");
+  });
+
+  it("ignorePnlAfterDays still holds before the age is reached", async () => {
+    const s = sym({ enabled: true, minimumSell: 3, minimumBuy: 2 });
+    s.ignorePnlAfterDays = 30;
+    const signals = await calculateProfitSignals("LONG", "SELL", lastBuy(), 0, -29, 1_000_000 + 29 * DAY_MS, s);
+    expect(signals.check).toBe("HOLD");
+  });
+
+  it("ignorePnlAfterDays does not override stop loss", async () => {
+    const s = sym({ enabled: true, minimumSell: 3, minimumBuy: 2 });
+    s.ignorePnlAfterDays = 30;
+    s.stopLoss = { enabled: true, stopTrading: false, pnl: -7, agingPerHour: 0, hit: false };
+    const signals = await calculateProfitSignals("LONG", "SELL", lastBuy(), 0, -29, 1_000_000 + 31 * DAY_MS, s);
+    expect(signals.check).toBe("STOP_LOSS");
+  });
 });

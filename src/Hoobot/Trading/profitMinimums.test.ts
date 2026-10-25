@@ -1,5 +1,6 @@
 import type { SymbolOptions } from "../Utilities/Args";
 import {
+  isPnlGateExpired,
   passesProfitMinimumForSide,
   resolveEffectiveProfitMinimums,
   shouldBlockForProfitMinimum,
@@ -30,5 +31,15 @@ describe("profitMinimums", () => {
     expect(shouldBlockForProfitMinimum(1, "SELL", sym(), "SELL", false)).toBe(true);
     expect(shouldBlockForProfitMinimum(4, "SELL", sym(), "SELL", false)).toBe(false);
     expect(shouldBlockForProfitMinimum(1, "SELL", sym(), "TAKE_PROFIT", false)).toBe(false);
+  });
+
+  it("isPnlGateExpired after ignorePnlAfterDays since the last trade", () => {
+    const day = 24 * 60 * 60 * 1000;
+    const now = 100 * day;
+    expect(isPnlGateExpired(sym({ ignorePnlAfterDays: 30 }), now - 30 * day, now)).toBe(true);
+    expect(isPnlGateExpired(sym({ ignorePnlAfterDays: 30 }), now - 29 * day, now)).toBe(false);
+    expect(isPnlGateExpired(sym(), now - 365 * day, now)).toBe(false);
+    expect(isPnlGateExpired(sym({ ignorePnlAfterDays: 30 }), 0, now)).toBe(false);
+    expect(isPnlGateExpired(sym({ ignorePnlAfterDays: 30 }), undefined, now)).toBe(false);
   });
 });

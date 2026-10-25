@@ -11,7 +11,7 @@ import {
   readForceSkip,
 } from "../Exchanges/Trades";
 import { Candlestick } from "../Exchanges/Candlesticks";
-import { resolveEffectiveProfitMinimums } from "../Trading/profitMinimums";
+import { isPnlGateExpired, resolveEffectiveProfitMinimums } from "../Trading/profitMinimums";
 import { effectiveStopLossPnl, type StopLossAtrConfig } from "../Trading/stopLossAtr";
 import { applyFeeAdjustmentToPnl } from "../Trading/tradeGates";
 import { resolveOpenPositionEntryTrade } from "../Trading/positionState";
@@ -278,9 +278,11 @@ export const calculateProfitSignals = async (
     }
   }
 
+  // ignorePnlAfterDays: vanhan kaupan jälkeen PNL ei enää estä seuraavaa kauppaa (TP/SL ennallaan).
+  const pnlGateExpired = isPnlGateExpired(symbolOptions, lastTrade.time, closeTime);
   const profitMins = resolveEffectiveProfitMinimums(symbolOptions, { effectiveTrend });
-  const minProfitSell = profitMins.minSell;
-  const minProfitBuy = profitMins.minBuy;
+  const minProfitSell = pnlGateExpired ? 0 : profitMins.minSell;
+  const minProfitBuy = pnlGateExpired ? 0 : profitMins.minBuy;
 
   const shouldTakeProfit = evaluateTakeProfitTrailing(unrealizedPNL, tpCfg, runtime);
 
@@ -404,10 +406,10 @@ export const calculateProfitSignals = async (
 
   // Prevent normal SELL/BUY when unrealized PNL is negative;
   // only explicit PNL logic (STOP_LOSS / TAKE_PROFIT / TAKE_PROFIT_FORCE) may close a losing trade.
-  if (check === "SELL" && unrealizedPNL < 0) {
+  if (check === "SELL" && unrealizedPNL < 0 && !pnlGateExpired) {
     check = "HOLD";
   }
-  if (check === "BUY" && unrealizedPNL < 0) {
+  if (check === "BUY" && unrealizedPNL < 0 && !pnlGateExpired) {
     check = "HOLD";
   }
 

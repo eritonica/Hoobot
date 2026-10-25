@@ -236,6 +236,8 @@ export interface SymbolOptions {
     forceMinProfit?: number;
     partialClose?: { enabled?: boolean; fraction?: number };
   };
+  /** Days since the previous trade after which PNL gates (profit minimums, no-loss guard) no longer block the next trade. 0/unset = off. */
+  ignorePnlAfterDays?: number;
   forcedExit?: {
     enabled?: boolean;
     candles?: number;

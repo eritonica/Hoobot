@@ -44,6 +44,21 @@ export const passesProfitMinimumForSide = (
   return unrealizedPnl >= threshold;
 };
 
+/**
+ * `ignorePnlAfterDays`: kun edellisestä kaupasta on kulunut vähintään näin monta vuorokautta,
+ * PNL-portit (profit.minimum* ja miinuskauppaesto) eivät estä seuraavaa kauppaa. 0 / puuttuu = pois.
+ */
+export const isPnlGateExpired = (
+  symbolOptions: SymbolOptions,
+  lastTradeTimeMs: number | undefined,
+  nowMs: number = Date.now()
+): boolean => {
+  const days = Number(symbolOptions.ignorePnlAfterDays);
+  if (!Number.isFinite(days) || days <= 0) return false;
+  if (lastTradeTimeMs == null || !Number.isFinite(lastTradeTimeMs) || lastTradeTimeMs <= 0) return false;
+  return nowMs - lastTradeTimeMs >= days * 24 * 60 * 60 * 1000;
+};
+
 export const shouldBlockForProfitMinimum = (
   unrealizedPnl: number,
   side: "SELL" | "BUY",

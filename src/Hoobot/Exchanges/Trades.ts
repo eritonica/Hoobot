@@ -15,7 +15,7 @@ export const allowsForcedLossTrade = (profit: string): boolean =>
   profit === "STOP_LOSS" || profit === "FORCE_IDLE" || profit === "STALE_EXIT";
 
 import { Filter } from "./Filters";
-import { shouldBlockForProfitMinimum } from "../Trading/profitMinimums";
+import { isPnlGateExpired, shouldBlockForProfitMinimum } from "../Trading/profitMinimums";
 import { markStopLossHit } from "../Indicators/Profit";
 import { queueSimTradeSnapshot, simRunKeyFromStartTime } from "../Simulation/simTradeSnapshot";
 import { handleOpenOrder, handleOpenOrders, Order, checkBeforePlacingOrder } from "./Orders";
@@ -1026,8 +1026,11 @@ export const sell = async (
             );
             return false;
           }
+          const symbolHistory = exchangeOptions.tradeHistory[toSymbolKey(symbol)];
+          const pnlGateExpired = isPnlGateExpired(symbolOptions, symbolHistory[symbolHistory.length - 1]?.time);
           if (
             !allowsForcedLossTrade(profit) &&
+            !pnlGateExpired &&
             shouldBlockForProfitMinimum(
               unrealizedPNL,
               "SELL",
@@ -1039,7 +1042,7 @@ export const sell = async (
             consoleLogger.push("error", "Not positive trade " + unrealizedPNL);
             return false;
           }
-          if (!allowsForcedLossTrade(profit) && unrealizedPNL < 0) {
+          if (!allowsForcedLossTrade(profit) && !pnlGateExpired && unrealizedPNL < 0) {
             consoleLogger.push("error", `Estetty miinusmyynti (${profit}): unrealized PNL ${unrealizedPNL}`);
             return false;
           }
@@ -1363,8 +1366,11 @@ export const buy = async (
             );
             return false;
           }
+          const symbolHistory = exchangeOptions.tradeHistory[toSymbolKey(symbol)];
+          const pnlGateExpired = isPnlGateExpired(symbolOptions, symbolHistory[symbolHistory.length - 1]?.time);
           if (
             !allowsForcedLossTrade(profit) &&
+            !pnlGateExpired &&
             shouldBlockForProfitMinimum(
               unrealizedPNL,
               "BUY",
@@ -1376,7 +1382,7 @@ export const buy = async (
             consoleLogger.push("error", "Not positive trade " + unrealizedPNL);
             return false;
           }
-          if (!allowsForcedLossTrade(profit) && unrealizedPNL < 0) {
+          if (!allowsForcedLossTrade(profit) && !pnlGateExpired && unrealizedPNL < 0) {
             consoleLogger.push("error", `Estetty osto tappiolla (${profit}): unrealized PNL ${unrealizedPNL}`);
             return false;
           }
@@ -1573,8 +1579,9 @@ export const simulateSell = async (
     ) {
       return false;
     }
-    // Prevent "minus trades" unless stop loss / idle force.
-    if (!allowsForcedLossTrade(profit) && pnl < 0) {
+    const pnlGateExpired = isPnlGateExpired(symbolOptions, lastTrade.time, time);
+    // Prevent "minus trades" unless stop loss / idle force / ignorePnlAfterDays.
+    if (!allowsForcedLossTrade(profit) && !pnlGateExpired && pnl < 0) {
       return false;
     }
     if (exchangeOptions.tradeHistory === undefined) {
@@ -1585,6 +1592,7 @@ export const simulateSell = async (
     }
     if (
       !allowsForcedLossTrade(profit) &&
+      !pnlGateExpired &&
       shouldBlockForProfitMinimum(pnl, "SELL", symbolOptions, profit, readForceSkip(symbolKeyS) === true)
     ) {
       return false;
@@ -1734,8 +1742,9 @@ export const simulateBuy = async (
     ) {
       return false;
     }
-    // Prevent "minus trades" unless stop loss / idle force.
-    if (!allowsForcedLossTrade(profit) && pnl < 0) {
+    const pnlGateExpired = isPnlGateExpired(symbolOptions, lastTrade.time, time);
+    // Prevent "minus trades" unless stop loss / idle force / ignorePnlAfterDays.
+    if (!allowsForcedLossTrade(profit) && !pnlGateExpired && pnl < 0) {
       return false;
     }
     if (exchangeOptions.tradeHistory === undefined) {
@@ -1746,6 +1755,7 @@ export const simulateBuy = async (
     }
     if (
       !allowsForcedLossTrade(profit) &&
+      !pnlGateExpired &&
       shouldBlockForProfitMinimum(pnl, "BUY", symbolOptions, profit, readForceSkip(toSymbolKey(symbol)) === true)
     ) {
       return false;
