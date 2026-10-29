@@ -18,8 +18,8 @@ export const resolveEffectiveProfitMinimums = (
   }
 ): EffectiveProfitMinimums => {
   let sym = symbolOptions;
-  if (opts?.adaptiveCfg?.enabled && opts.volMult != null && opts.volMult !== 1) {
-    sym = withAdaptiveProfitScaling(symbolOptions, opts.volMult, opts.adaptiveCfg);
+  if (opts?.adaptiveCfg?.enabled) {
+    sym = withAdaptiveProfitScaling(symbolOptions, opts.volMult!, opts.adaptiveCfg);
   }
   const active = sym.profit?.enabled === true;
   const baseMinSell = sym.profit?.minimumSell ?? 0;
