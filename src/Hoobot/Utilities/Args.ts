@@ -784,14 +784,15 @@ export const validateOptions = (options: ConfigOptions): ConfigOptions => {
           if (!sym.profit) sym.profit = { enabled: true, minimumSell: feeFloor, minimumBuy: feeFloor };
           for (const side of ["minimumSell", "minimumBuy"] as const) {
             const raw = Number(sym.profit[side] ?? 0);
-            if (!Number.isFinite(raw) || raw < feeFloor) {
+            // Allow explicit 0 (no minimum); only raise non-finite or (0 < raw < feeFloor)
+            if (!Number.isFinite(raw) || (raw !== 0 && raw < feeFloor)) {
               console.warn(
                 `[Hoobot] ${sym.name}: profit.${side}=${raw} raised to fee floor ${feeFloor.toFixed(3)}% (round-trip fee + 0.05).`
               );
               sym.profit[side] = feeFloor;
             }
           }
-        }
+        } 
         // stopLoss vs stopLossBuy may be intentionally asymmetric (wide long SL, tight short SL).
         // Do not auto-widen stopLossBuy — warn only.
         if (sym.stopLossBuy?.enabled && sym.stopLoss?.enabled) {
