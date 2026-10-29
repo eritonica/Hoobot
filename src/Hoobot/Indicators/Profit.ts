@@ -93,8 +93,8 @@ export const applyTakeProfitForceAfter = (opts: {
 };
 
 /**
- * BUY-polulla käytä takeProfitBuy vain kun takeProfitBuy.enabled === true.
- * Muuten aina pää-takeProfit (myynti-/sulkemispolku).
+ * BUY-polulla kÃ¤ytÃ¤ takeProfitBuy vain kun takeProfitBuy.enabled === true.
+ * Muuten aina pÃ¤Ã¤-takeProfit (myynti-/sulkemispolku).
  */
 const getTakeProfitConfigForNext = (symbolOptions: SymbolOptions, next: string): TakeProfitConfig | undefined => {
   const buyTp = symbolOptions.takeProfitBuy;
@@ -104,7 +104,7 @@ const getTakeProfitConfigForNext = (symbolOptions: SymbolOptions, next: string):
   return symbolOptions.takeProfit;
 };
 
-/** BUY-polulla käytä stopLossBuy:ä vain jos täppä päällä (enabled === true); muuten sama stopLoss kuin myynnissä. */
+/** BUY-polulla kÃ¤ytÃ¤ stopLossBuy:Ã¤ vain jos tÃ¤ppÃ¤ pÃ¤Ã¤llÃ¤ (enabled === true); muuten sama stopLoss kuin myynnissÃ¤. */
 const getStopLossConfigForNext = (symbolOptions: SymbolOptions, next: string) => {
   const buySl = symbolOptions.stopLossBuy;
   if (next === "BUY" && buySl !== undefined && buySl.enabled === true) {
@@ -113,7 +113,7 @@ const getStopLossConfigForNext = (symbolOptions: SymbolOptions, next: string) =>
   return symbolOptions.stopLoss;
 };
 
-/** takeProfit.limit > 0 → vähimmäis-unrealized % TP-suluille. 0 tai puuttuu = ei limit-lattiaa. */
+/** takeProfit.limit > 0 â†’ vÃ¤himmÃ¤is-unrealized % TP-suluille. 0 tai puuttuu = ei limit-lattiaa. */
 export const takeProfitLimitFloorPct = (tpCfg?: TakeProfitConfig): number => {
   const lim = tpCfg?.limit;
   if (typeof lim === "number" && Number.isFinite(lim) && lim > 0) return lim;
@@ -152,7 +152,7 @@ export const meetsTakeProfitLimitForAction = (
   return meetsTakeProfitLimitFloor(unrealizedPNL, getTakeProfitConfigForNext(symbolOptions, next));
 };
 
-/** Päivitä huippu toimeksiannon yhteydessä kun currentMaxSource === "trade". */
+/** PÃ¤ivitÃ¤ huippu toimeksiannon yhteydessÃ¤ kun currentMaxSource === "trade". */
 export const recordTakeProfitPeakOnOrder = (
   symbolOptions: SymbolOptions,
   next: string,
@@ -172,7 +172,7 @@ export const recordTakeProfitPeakOnOrder = (
   });
 };
 
-/** Käynnistyksessä: synkkaa TP-runtime kaikille aktiivisille symboleille. */
+/** KÃ¤ynnistyksessÃ¤: synkkaa TP-runtime kaikille aktiivisille symboleille. */
 export const seedTakeProfitRuntimeForAllSymbols = (options: {
   exchanges?: Array<{ symbols?: SymbolOptions[] }>;
 }): void => {
@@ -184,7 +184,7 @@ export const seedTakeProfitRuntimeForAllSymbols = (options: {
   }
 };
 
-/** Synkronoi runtime-Map configin current-arvosta (merge / käynnistys). */
+/** Synkronoi runtime-Map configin current-arvosta (merge / kÃ¤ynnistys). */
 export const syncTakeProfitRuntimeFromConfig = (symbolOptions: SymbolOptions): void => {
   const symbolKey = toSymbolKey(symbolOptions.name);
   resetTakeProfitRuntimeForSymbol(symbolKey);
@@ -223,7 +223,7 @@ export const calculateProfitSignals = async (
   let check = "HOLD";
   const tpCfg = getTakeProfitConfigForNext(symbolOptions, next);
 
-  // Calculate time since the last trade (fractional hours — Math.ceil kiristi SL:ää heti 1. minuutilla)
+  // Calculate time since the last trade (fractional hours â€” Math.ceil kiristi SL:Ã¤Ã¤ heti 1. minuutilla)
   const timeSinceLastTrade = (closeTime - lastTrade.time) / (1000 * 60 * 60); // Time in hours
   const hoursSinceLastTrade = Math.max(0, timeSinceLastTrade);
 
@@ -250,7 +250,7 @@ export const calculateProfitSignals = async (
     stopLoss = 0;
   }
 
-  /** Informatiivinen trigger-viiva lokiin (ei päätöksessä käytettä limit-lattiaa). */
+  /** Informatiivinen trigger-viiva lokiin (ei pÃ¤Ã¤tÃ¶ksessÃ¤ kÃ¤ytettÃ¤ limit-lattiaa). */
   const takeProfit = currentMaxPNL - (tpCfg?.drop ?? 0);
 
   // Approximate how many primary timeframe candles have passed since the last trade
@@ -278,7 +278,7 @@ export const calculateProfitSignals = async (
     }
   }
 
-  // ignorePnlAfterDays: vanhan kaupan jälkeen PNL ei enää estä seuraavaa kauppaa (TP/SL ennallaan).
+  // ignorePnlAfterDays: vanhan kaupan jÃ¤lkeen PNL ei enÃ¤Ã¤ estÃ¤ seuraavaa kauppaa (TP/SL ennallaan).
   const pnlGateExpired = isPnlGateExpired(symbolOptions, lastTrade.time, closeTime);
   const profitMins = resolveEffectiveProfitMinimums(symbolOptions, { effectiveTrend });
   const minProfitSell = pnlGateExpired ? 0 : profitMins.minSell;
@@ -287,7 +287,7 @@ export const calculateProfitSignals = async (
   const shouldTakeProfit = evaluateTakeProfitTrailing(unrealizedPNL, tpCfg, runtime);
 
   const shouldStopLoss = unrealizedPNL <= stopLoss;
-  /** BUY + SL buy täppä päällä → vain buy-SL; muuten (myös BUY ilman täppää) → pää-stop lossin enabled. */
+  /** BUY + SL buy tÃ¤ppÃ¤ pÃ¤Ã¤llÃ¤ â†’ vain buy-SL; muuten (myÃ¶s BUY ilman tÃ¤ppÃ¤Ã¤) â†’ pÃ¤Ã¤-stop lossin enabled. */
   const useBuyStopLoss = next === "BUY" && symbolOptions.stopLossBuy?.enabled === true;
   const stopLossEnabled = useBuyStopLoss ? true : symbolOptions.stopLoss?.enabled === true;
 
@@ -360,8 +360,8 @@ export const calculateProfitSignals = async (
   }
 
   /**
-   * Vähimmäisaika edelliseen kauppaan (tunteina): estä tavalliset SELL/BUY -signaalit ennen kuin tauko täyttyy.
-   * TP/SL eivät kuulu tauon taakse (sulku ja riskinhallinta).
+   * VÃ¤himmÃ¤isaika edelliseen kauppaan (tunteina): estÃ¤ tavalliset SELL/BUY -signaalit ennen kuin tauko tÃ¤yttyy.
+   * TP/SL eivÃ¤t kuulu tauon taakse (sulku ja riskinhallinta).
    */
   if (
     symbolOptions.minimumTimeSinceLastTrade > 0 &&
@@ -385,7 +385,7 @@ export const calculateProfitSignals = async (
     check !== "STOP_LOSS"
   ) {
     if (forceExitMinProfit != null && unrealizedPNL < forceExitMinProfit) {
-      // Unrealized PNL below configured minimum – skip forced exit to prevent loss trades
+      // Unrealized PNL below configured minimum â€“ skip forced exit to prevent loss trades
     } else {
       const forcedDirection = lastTrade.isBuyer ? "SELL" : "BUY";
       if (next === forcedDirection || next === "BOTH") {
@@ -406,10 +406,11 @@ export const calculateProfitSignals = async (
 
   // Prevent normal SELL/BUY when unrealized PNL is negative;
   // only explicit PNL logic (STOP_LOSS / TAKE_PROFIT / TAKE_PROFIT_FORCE) may close a losing trade.
-  if (check === "SELL" && unrealizedPNL < 0 && !pnlGateExpired) {
+  // Exception: minimumSell/minimumBuy === 0 explicitly opts out of the PNL gate entirely.
+  if (check === "SELL" && unrealizedPNL < 0 && !pnlGateExpired && minProfitSell !== 0) {
     check = "HOLD";
   }
-  if (check === "BUY" && unrealizedPNL < 0 && !pnlGateExpired) {
+  if (check === "BUY" && unrealizedPNL < 0 && !pnlGateExpired && minProfitBuy !== 0) {
     check = "HOLD";
   }
 
@@ -463,7 +464,7 @@ const shouldUpdateCurrentMaxForNext = (symbolOptions: SymbolOptions, next: strin
   const source = getTakeProfitConfigForNext(symbolOptions, next)?.currentMaxSource ?? "update";
   if (source === "update") return true;
   if (source === "final") return isFinalCandle;
-  return false; // "trade" → only updated in sell/buy
+  return false; // "trade" â†’ only updated in sell/buy
 };
 
 export const checkProfitSignals = async (
