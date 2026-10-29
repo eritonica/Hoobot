@@ -88,6 +88,8 @@ export default (_env, argv) => {
       new webpack.DefinePlugin({
         "global.GENTLY": false,
       }),
+      new webpack.IgnorePlugin({ resourceRegExp: /^zlib-sync$/ }),
+    new webpack.IgnorePlugin({ resourceRegExp: /^bufferutil$/ }),
     ],
   };
 };
