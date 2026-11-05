@@ -15,6 +15,7 @@ export const buildCandleSeriesFingerprint = (series: Candlestick[] | undefined):
     last.high,
     last.low,
     last.close,
+    last.volume,
     last.isFinal ? 1 : 0,
     prev?.close ?? "",
   ].join(":");
