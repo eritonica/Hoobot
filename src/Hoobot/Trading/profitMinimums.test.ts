@@ -4,6 +4,7 @@ import {
   passesProfitMinimumForSide,
   resolveEffectiveProfitMinimums,
   shouldBlockForProfitMinimum,
+  shouldBlockLossBuy,
 } from "./profitMinimums";
 
 describe("profitMinimums", () => {
@@ -31,6 +32,15 @@ describe("profitMinimums", () => {
     expect(shouldBlockForProfitMinimum(1, "SELL", sym(), "SELL", false)).toBe(true);
     expect(shouldBlockForProfitMinimum(4, "SELL", sym(), "SELL", false)).toBe(false);
     expect(shouldBlockForProfitMinimum(1, "SELL", sym(), "TAKE_PROFIT", false)).toBe(false);
+  });
+
+  it("shouldBlockLossBuy allows a loss buy only with an enabled minimumBuy of 0", () => {
+    const zero = sym({ profit: { enabled: true, minimumSell: 0.3, minimumBuy: 0 } });
+    expect(shouldBlockLossBuy(-0.37, zero)).toBe(false);
+    expect(shouldBlockForProfitMinimum(-0.37, "BUY", zero, "BUY", false)).toBe(false);
+    expect(shouldBlockLossBuy(-0.37, sym())).toBe(true);
+    expect(shouldBlockLossBuy(-0.37, sym({ profit: { enabled: false, minimumSell: 0, minimumBuy: 0 } }))).toBe(true);
+    expect(shouldBlockLossBuy(0.1, sym())).toBe(false);
   });
 
   it("isPnlGateExpired after ignorePnlAfterDays since the last trade", () => {

@@ -15,7 +15,7 @@ export const allowsForcedLossTrade = (profit: string): boolean =>
   profit === "STOP_LOSS" || profit === "FORCE_IDLE" || profit === "STALE_EXIT";
 
 import { Filter } from "./Filters";
-import { isPnlGateExpired, shouldBlockForProfitMinimum } from "../Trading/profitMinimums";
+import { isPnlGateExpired, shouldBlockForProfitMinimum, shouldBlockLossBuy } from "../Trading/profitMinimums";
 import { markStopLossHit } from "../Indicators/Profit";
 import { queueSimTradeSnapshot, simRunKeyFromStartTime } from "../Simulation/simTradeSnapshot";
 import { handleOpenOrder, handleOpenOrders, Order, checkBeforePlacingOrder } from "./Orders";
@@ -1382,7 +1382,7 @@ export const buy = async (
             consoleLogger.push("error", "Not positive trade " + unrealizedPNL);
             return false;
           }
-          if (!allowsForcedLossTrade(profit) && !pnlGateExpired && unrealizedPNL < 0) {
+          if (!allowsForcedLossTrade(profit) && !pnlGateExpired && shouldBlockLossBuy(unrealizedPNL, symbolOptions)) {
             consoleLogger.push("error", `Estetty osto tappiolla (${profit}): unrealized PNL ${unrealizedPNL}`);
             return false;
           }
@@ -1743,8 +1743,8 @@ export const simulateBuy = async (
       return false;
     }
     const pnlGateExpired = isPnlGateExpired(symbolOptions, lastTrade.time, time);
-    // Prevent "minus trades" unless stop loss / idle force / ignorePnlAfterDays.
-    if (!allowsForcedLossTrade(profit) && !pnlGateExpired && pnl < 0) {
+    // Prevent "minus trades" unless stop loss / idle force / ignorePnlAfterDays / profit.minimumBuy 0.
+    if (!allowsForcedLossTrade(profit) && !pnlGateExpired && shouldBlockLossBuy(pnl, symbolOptions)) {
       return false;
     }
     if (exchangeOptions.tradeHistory === undefined) {

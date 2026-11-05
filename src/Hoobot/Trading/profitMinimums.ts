@@ -59,6 +59,13 @@ export const isPnlGateExpired = (
   return nowMs - lastTradeTimeMs >= days * 24 * 60 * 60 * 1000;
 };
 
+/** Blocks a buy at negative PNL, unless an enabled `profit` config sets the buy minimum to 0 (no minimum). */
+export const shouldBlockLossBuy = (unrealizedPnl: number, symbolOptions: SymbolOptions): boolean => {
+  if (unrealizedPnl >= 0) return false;
+  const mins = resolveEffectiveProfitMinimums(symbolOptions);
+  return !mins.active || mins.minBuy !== 0;
+};
+
 export const shouldBlockForProfitMinimum = (
   unrealizedPnl: number,
   side: "SELL" | "BUY",
