@@ -28,11 +28,7 @@ import {
 } from "../Trading/consecutiveLossGuard";
 import { hasOpenAlgorithmicPosition, hasTradeHistory } from "../Trading/positionState";
 import { simSellPriceFromCandle, simBuyPriceFromCandle, simSellBaseQuantity } from "../Trading/executionSizing";
-import {
-  evaluateAlgorithmicTickPolicy,
-  evaluateSimAlgorithmicTickPolicy,
-  withSymbolAlgorithmicLock,
-} from "./algorithmicExecution";
+import { evaluateSimAlgorithmicTickPolicy, withSymbolAlgorithmicLock } from "./algorithmicExecution";
 import {
   throttleKeyTradeHistory,
   throttleKeyBalances,
@@ -924,18 +920,6 @@ const algorithmicUnlocked = async (
     consoleLogger.push(`warning`, `Not enough candlesticks for calculations, please wait.`);
     return false;
   }
-
-  const hasOpenPosition = hasOpenAlgorithmicPosition(exchangeOptions.tradeHistory[symbolKey], symbolKey);
-  const tickPolicy = evaluateAlgorithmicTickPolicy(
-    symbolKey,
-    symbolOptions,
-    candlesticks,
-    hasOpenPosition
-  );
-  if (!tickPolicy.runFullDecision) {
-    return false;
-  }
-  consoleLogger.push("Tick policy", tickPolicy);
 
   const latestCandle = series[series.length - 1];
   const prevCandle = series[series.length - 2];

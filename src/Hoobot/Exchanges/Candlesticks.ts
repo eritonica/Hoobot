@@ -151,6 +151,17 @@ export async function getLastCandlesticks(
   });
 }
 
+/** Adds a live candle: a tick for the period already last in the series replaces it, a new period appends. */
+export const upsertCandlestick = (series: Candlestick[], candle: Candlestick): Candlestick[] => {
+  const last = series[series.length - 1];
+  if (last !== undefined && (last.startTime ?? last.time) === (candle.startTime ?? candle.time)) {
+    series[series.length - 1] = candle;
+  } else {
+    series.push(candle);
+  }
+  return series;
+};
+
 export const listenForCandlesticks = async (
   exchange: Exchange,
   symbol: string,
@@ -219,27 +230,15 @@ export const listenForCandlesticks = async (
             getLastCandlesticks(exchange, symbol, timeframes[i], historyLength)
           );
           candleStore[symbol] = {
-            [timeframes[i]]: [...oldCandlesticks, newCandlestick],
+            [timeframes[i]]: upsertCandlestick(oldCandlesticks, newCandlestick),
           };
         } else if (candleStore[symbol][timeframes[i]] === undefined) {
-          candleStore[symbol][timeframes[i]] = [
-            ...(await withRetry(() =>
-              getLastCandlesticks(exchange, symbol, timeframes[i], historyLength)
-            )),
-            newCandlestick,
-          ];
-        } else if (newCandlestick.isFinal === true) {
-          candleStore[symbol][timeframes[i]].push(newCandlestick);
+          candleStore[symbol][timeframes[i]] = upsertCandlestick(
+            await withRetry(() => getLastCandlesticks(exchange, symbol, timeframes[i], historyLength)),
+            newCandlestick
+          );
         } else {
-          const arr = candleStore[symbol][timeframes[i]];
-          const lastCandle = arr[arr.length - 1];
-          const lastStart = lastCandle?.startTime ?? lastCandle?.time;
-          const isNewPeriod = lastStart !== undefined && newCandlestick.startTime !== undefined && lastStart !== newCandlestick.startTime;
-          if (isNewPeriod) {
-            arr.push(newCandlestick);
-          } else {
-            arr[arr.length - 1] = newCandlestick;
-          }
+          upsertCandlestick(candleStore[symbol][timeframes[i]], newCandlestick);
         }
         const arrForSlice = candleStore[symbol]?.[timeframes[i]];
         if (arrForSlice?.length > maxCandlesticks) {
@@ -302,20 +301,16 @@ export const listenForCandlesticks = async (
             };
             if (candleStore[toSymbolKey(symbol)] === undefined) {
               candleStore[toSymbolKey(symbol)] = {
-                [timeframes[i]]: [
-                  ...(await withRetry(() =>
-                    getLastCandlesticks(exchange, symbol, timeframes[i], historyLength)
-                  )),
-                  newCandlestick,
-                ],
+                [timeframes[i]]: upsertCandlestick(
+                  await withRetry(() => getLastCandlesticks(exchange, symbol, timeframes[i], historyLength)),
+                  newCandlestick
+                ),
               };
             } else if (candleStore[toSymbolKey(symbol)][timeframes[i]] === undefined) {
-              candleStore[toSymbolKey(symbol)][timeframes[i]] = [
-                ...(await withRetry(() =>
-                  getLastCandlesticks(exchange, symbol, timeframes[i], historyLength)
-                )),
-                newCandlestick,
-              ];
+              candleStore[toSymbolKey(symbol)][timeframes[i]] = upsertCandlestick(
+                await withRetry(() => getLastCandlesticks(exchange, symbol, timeframes[i], historyLength)),
+                newCandlestick
+              );
             } else if (newCandlestick.isFinal === true) {
               candleStore[toSymbolKey(symbol)][timeframes[i]].push(newCandlestick);
             } else {
@@ -433,16 +428,16 @@ export const listenForCandlesticks = async (
             };
             if (candleStore[storeKey] === undefined) {
               candleStore[storeKey] = {
-                [timeframes[i]]: [
-                  ...(await withRetry(() => getLastCandlesticks(exchange, symbol, timeframes[i], historyLength))),
-                  newCandlestick,
-                ],
+                [timeframes[i]]: upsertCandlestick(
+                  await withRetry(() => getLastCandlesticks(exchange, symbol, timeframes[i], historyLength)),
+                  newCandlestick
+                ),
               };
             } else if (candleStore[storeKey][timeframes[i]] === undefined) {
-              candleStore[storeKey][timeframes[i]] = [
-                ...(await withRetry(() => getLastCandlesticks(exchange, symbol, timeframes[i], historyLength))),
-                newCandlestick,
-              ];
+              candleStore[storeKey][timeframes[i]] = upsertCandlestick(
+                await withRetry(() => getLastCandlesticks(exchange, symbol, timeframes[i], historyLength)),
+                newCandlestick
+              );
             } else if (newCandlestick.isFinal === true) {
               candleStore[storeKey][timeframes[i]].push(newCandlestick);
             } else {
